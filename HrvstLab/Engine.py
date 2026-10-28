@@ -458,9 +458,9 @@ def generate_transactions(num_transactions: int = 10, budget: float = 50000.0) -
     - SELL transactions only allowed when sufficient shares are owned
     """
     # Load all available tickers
-    nasdaq_tickers = load_tickers('NASDAQ')
-    sp500_tickers = load_tickers('S&P500')
-    rus1000_tickers = load_tickers('Rus1000')
+    nasdaq_tickers = load_tickers('data/NASDAQ.txt')
+    sp500_tickers = load_tickers('data/S&P500.txt')
+    rus1000_tickers = load_tickers('data/Rus1000.txt')
     all_tickers = nasdaq_tickers + sp500_tickers + rus1000_tickers
     
     transactions = []
