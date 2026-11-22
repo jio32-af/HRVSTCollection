@@ -1,0 +1,7 @@
+.venv
+__pycache__
+.git
+.DS_Store
+static
+Logo.mp4
+*.mp4
