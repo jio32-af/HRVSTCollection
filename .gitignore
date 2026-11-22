@@ -1,0 +1,37 @@
+# Secrets & Environment Variables (CRITICAL)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# macOS & Windows OS Files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Thumbs.db
+Desktop.ini
+
+# Editors & IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Dependencies & Build Outputs
+node_modules/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+dist/
+build/
+out/
+
+# Logs & Local Databases
+*.log
+npm-debug.log*
+*.sqlite
+*.sqlite3
