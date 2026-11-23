@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HRVSTNeural — 8-Layer MLP from Scratch</title>
+<style>
+:root{color-scheme:dark;--bg:#080c1a;--line:#263056;--txt:#eef1fd;--mut:#9aa6c7;--acc:#7aa2ff}
+*{box-sizing:border-box}body{margin:0;font-family:ui-sans-serif,system-ui,sans-serif;background:var(--bg);color:var(--txt);line-height:1.6}
+.wrap{max-width:720px;margin:0 auto;padding:48px 20px 64px}
+a.back{color:var(--mut);text-decoration:none;font-size:14px}
+h1{letter-spacing:-1px;margin:8px 0} p{color:var(--mut)}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin:24px 0}
+.btns a{text-decoration:none;font-size:15px;border-radius:999px;padding:10px 20px;border:1px solid var(--line);color:var(--txt)}
+.btns a.primary{background:var(--acc);color:#0a1440;border-color:var(--acc);font-weight:700}
+pre{background:#00000055;border:1px solid var(--line);border-radius:12px;padding:14px;overflow:auto;font-size:13px}
+</style>
+</head>
+<body><div class="wrap">
+<a class="back" href="../">← All projects</a>
+<h1>HRVSTNeural</h1>
+<p>8-layer MLP <code>[4, 8, 8, 16, 16, 8, 8, 4, 2]</code> in pure Python — manual backprop, He init, custom loss plots. No PyTorch.</p>
+<div class="btns">
+<a class="primary" href="https://github.com/jio32-af/HRVSTCollection/tree/main/HRVSTNeural">Source on GitHub ↗</a>
+</div>
+<h2>Run it</h2>
+<pre>cd HRVSTNeural
+python3 train.py
+python3 demo.py</pre>
+<p>Python-only build — this page is its site entry so every flagship card opens somewhere.</p>
+</div></body>
+</html>

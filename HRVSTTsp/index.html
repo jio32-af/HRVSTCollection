@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HRVSTTsp — TSP Solver + Paper</title>
+<style>
+:root{color-scheme:dark;--bg:#080c1a;--card:#121832;--line:#263056;--txt:#eef1fd;--mut:#9aa6c7;--acc:#6ee7b7}
+*{box-sizing:border-box}body{margin:0;font-family:ui-sans-serif,system-ui,sans-serif;background:var(--bg);color:var(--txt);line-height:1.6}
+.wrap{max-width:720px;margin:0 auto;padding:48px 20px 64px}
+a.back{color:var(--mut);text-decoration:none;font-size:14px}
+h1{letter-spacing:-1px;margin:8px 0} p{color:var(--mut)}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin:24px 0}
+.btns a{text-decoration:none;font-size:15px;border-radius:999px;padding:10px 20px;border:1px solid var(--line);color:var(--txt)}
+.btns a.primary{background:var(--acc);color:#06251a;border-color:var(--acc);font-weight:700}
+pre{background:#00000055;border:1px solid var(--line);border-radius:12px;padding:14px;overflow:auto;color:var(--txt);font-size:13px}
+</style>
+</head>
+<body><div class="wrap">
+<a class="back" href="../">← All projects</a>
+<h1>HRVSTTsp</h1>
+<p>Geometric Euclidean TSP solver with Delaunay triangulation + MST candidate pruning. 400-trial benchmark: 0.000%–0.066% mean optimality gap, 94%–100% win rate vs. simulated annealing.</p>
+<div class="btns">
+<a class="primary" href="HRVST_TSP_Benchmark_Paper.pdf">Read the paper (PDF)</a>
+<a href="https://github.com/jio32-af/HRVSTCollection/tree/main/HRVSTTsp">Source on GitHub ↗</a>
+</div>
+<h2>Run it</h2>
+<pre>cd HRVSTTsp
+python3 TSP.py</pre>
+<p>Python solver — no browser version. The PDF above is the full 5-page benchmark paper.</p>
+</div></body>
+</html>
