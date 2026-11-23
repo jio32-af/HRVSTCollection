@@ -4,32 +4,79 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HRVSTCollection — Satvik</title>
+<meta name="description" content="Interactive math, physics, AI, and finance projects built from scratch.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◍</text></svg>">
 <style>
-:root{color-scheme:dark;--bg:#0b1020;--card:#141b33;--line:#263056;--txt:#e8ecf8;--mut:#9aa6c7;--acc:#6ee7b7}
-*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:radial-gradient(1000px 500px at 20% -10%,#1c2a5e,transparent),var(--bg);color:var(--txt)}
-.wrap{max-width:900px;margin:0 auto;padding:48px 20px 64px}header p{color:var(--mut);max-width:60ch}
-h1{margin:0 0 8px;font-size:40px;letter-spacing:-.5px}.tag{display:inline-block;font-size:13px;color:var(--acc);border:1px solid var(--line);border-radius:999px;padding:4px 12px;margin-bottom:16px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:28px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;text-decoration:none;color:var(--txt);display:block}
-.card:hover{border-color:var(--acc)}.card h2{margin:0 0 6px;font-size:18px}.card p{margin:0;color:var(--mut);font-size:14px;line-height:1.5}.card span{display:inline-block;margin-top:12px;font-size:14px;color:var(--acc)}
-.foot{margin-top:32px;color:var(--mut);font-size:14px}.foot a{color:var(--txt)}
+:root{color-scheme:dark;--bg:#080c1a;--card:#121832;--card2:#0e1430;--line:#263056;--txt:#eef1fd;--mut:#9aa6c7;--acc:#6ee7b7;--acc2:#7aa2ff}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt);line-height:1.6}
+.hero{background:radial-gradient(900px 420px at 15% 0%,#27408b66,transparent),radial-gradient(800px 400px at 90% 10%,#0e5f4c55,transparent),var(--bg);border-bottom:1px solid var(--line)}
+.wrap{max-width:960px;margin:0 auto;padding:0 20px}
+nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0}
+nav b{letter-spacing:-.5px}nav a{color:var(--mut);text-decoration:none;font-size:14px;border:1px solid var(--line);border-radius:999px;padding:6px 14px}
+nav a:hover{color:var(--txt);border-color:var(--acc)}
+.hero-inner{padding:36px 0 52px}.kicker{display:inline-block;font-size:13px;color:var(--acc);border:1px solid var(--line);border-radius:999px;padding:4px 12px;margin-bottom:16px;background:#ffffff08}
+h1{margin:0 0 10px;font-size:clamp(34px,5vw,54px);letter-spacing:-1.5px;line-height:1.05}
+h1 em{font-style:normal;background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--mut);max-width:62ch;margin:0}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+.stat{border:1px solid var(--line);background:#ffffff06;border-radius:12px;padding:8px 14px;font-size:14px;color:var(--mut)}
+.stat b{color:var(--txt);margin-right:6px;font-size:16px}
+section{padding:36px 0 8px}h2{font-size:22px;letter-spacing:-.5px;margin:0 0 4px}
+.sec-sub{color:var(--mut);margin:0 0 18px;font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.card{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);border-radius:16px;padding:20px;text-decoration:none;color:var(--txt);display:flex;flex-direction:column;gap:8px;transition:transform .15s ease,border-color .15s ease}
+.card:hover{transform:translateY(-3px);border-color:var(--acc)}
+.icon{font-size:26px}.card h3{margin:0;font-size:18px;letter-spacing:-.3px}
+.card p{margin:0;color:var(--mut);font-size:14px;flex:1}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.tags i{font-style:normal;font-size:12px;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:2px 10px}
+.go{margin-top:10px;font-size:14px;color:var(--acc)}
+.rows{display:grid;gap:12px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--line);border-radius:14px;padding:14px 18px;background:#ffffff04;flex-wrap:wrap}
+.row div{min-width:200px}.row b{display:block}.row small{color:var(--mut)}
+.row a{color:var(--txt);text-decoration:none;font-size:14px;border:1px solid var(--line);border-radius:999px;padding:6px 14px;white-space:nowrap}
+.row a:hover{border-color:var(--acc)}
+footer{border-top:1px solid var(--line);margin-top:44px;padding:22px 0 40px;color:var(--mut);font-size:14px}
+footer a{color:var(--txt)}
 </style>
 </head>
 <body>
-<div class="wrap">
-<header>
-<div class="tag">Built from scratch · Math · Physics · AI · Finance</div>
-<h1>HRVSTCollection</h1>
-<p>Interactive simulations and solvers by Satvik. Open any demo below — everything runs in the browser.</p>
-</header>
-<div class="grid">
-<a class="card" href="HRVSTWave/"><h2>HRVSTWave</h2><p>Real-time 2D wave equation solver with stability monitoring.</p><span>Open demo →</span></a>
-<a class="card" href="HRVSTGraph/"><h2>HRVSTGraph</h2><p>Pathfinding lab benchmarking A*, Dijkstra, and Greedy.</p><span>Open demo →</span></a>
-<a class="card" href="HRVSTSim/"><h2>HRVSTSim</h2><p>Barnes–Hut N-body gravity engine, O(N log N).</p><span>Open demo →</span></a>
-<a class="card" href="HRVSTCompress/"><h2>HRVSTCompress</h2><p>Huffman + 12-bit LZW compression visualizer.</p><span>Open demo →</span></a>
-<a class="card" href="HRVSTDraw/HRVSTDraw.html"><h2>HRVSTDraw</h2><p>DFT epicycle studio that reconstructs drawings.</p><span>Open demo →</span></a>
+<div class="hero"><div class="wrap">
+<nav><b>◍ HRVSTCollection</b><a href="https://github.com/jio32-af/HRVSTCollection">GitHub ↗</a></nav>
+<div class="hero-inner">
+<div class="kicker">Math · Physics · AI · Quant finance — built from scratch</div>
+<h1>Play with <em>real simulations</em>,<br>not screenshots.</h1>
+<p class="sub">Five interactive demos run entirely in your browser, plus three Python flagships including a tax-loss harvester, a neural net with hand-written backprop, and a TSP solver with a published benchmark paper.</p>
+<div class="stats">
+<div class="stat"><b>8</b>projects</div>
+<div class="stat"><b>5</b>live demos</div>
+<div class="stat"><b>1</b>research paper</div>
 </div>
-<p class="foot">Python flagships in the <a href="https://github.com/jio32-af/HRVSTCollection">repo</a>: HRVSTLab · HRVSTTsp + research paper · HRVSTNeural.</p>
+</div>
+</div></div>
+<div class="wrap">
+<section>
+<h2>Live demos</h2>
+<p class="sec-sub">Click any card — no install, no setup.</p>
+<div class="grid">
+<a class="card" href="HRVSTWave/"><div class="icon">🌊</div><h3>HRVSTWave</h3><p>Watch waves ripple, reflect, and interfere on a real 2D physics grid.</p><div class="tags"><i>FDTD</i><i>physics</i></div><div class="go">Open demo →</div></a>
+<a class="card" href="HRVSTGraph/"><div class="icon">🧭</div><h3>HRVSTGraph</h3><p>Race A* against Dijkstra and Greedy through the same maze.</p><div class="tags"><i>A*</i><i>algorithms</i></div><div class="go">Open demo →</div></a>
+<a class="card" href="HRVSTSim/"><div class="icon">🪐</div><h3>HRVSTSim</h3><p>Flings hundreds of bodies around with Barnes–Hut gravity.</p><div class="tags"><i>O(N log N)</i><i>N-body</i></div><div class="go">Open demo →</div></a>
+<a class="card" href="HRVSTCompress/"><div class="icon">🗜️</div><h3>HRVSTCompress</h3><p>Type text, see Huffman and LZW squeeze it byte by byte.</p><div class="tags"><i>Huffman</i><i>LZW</i></div><div class="go">Open demo →</div></a>
+<a class="card" href="HRVSTDraw/HRVSTDraw.html"><div class="icon">✏️</div><h3>HRVSTDraw</h3><p>Draw anything and watch Fourier epicycles reconstruct it.</p><div class="tags"><i>DFT</i><i>epicycles</i></div><div class="go">Open demo →</div></a>
+</div>
+</section>
+<section>
+<h2>Flagship code</h2>
+<p class="sec-sub">Deeper Python builds — source in the repo.</p>
+<div class="rows">
+<div class="row"><div><b>HRVSTLab</b><small>Tax-loss harvesting scanner on real Yahoo Finance data</small></div><a href="https://github.com/jio32-af/HRVSTCollection/tree/main/HrvstLab">Source ↗</a></div>
+<div class="row"><div><b>HRVSTTsp + paper</b><small>Euclidean TSP solver, 0.00–0.07% optimality gap, 400-trial benchmark</small></div><a href="https://github.com/jio32-af/HRVSTCollection/tree/main/HRVSTTsp">Paper + code ↗</a></div>
+<div class="row"><div><b>HRVSTNeural</b><small>8-layer MLP in pure Python, manual backprop, He init</small></div><a href="https://github.com/jio32-af/HRVSTCollection/tree/main/HRVSTNeural">Source ↗</a></div>
+</div>
+</section>
+<footer>Built by Satvik · <a href="https://github.com/jio32-af/HRVSTCollection">jio32-af/HRVSTCollection</a> · PRs welcome</footer>
 </div>
 </body>
 </html>
