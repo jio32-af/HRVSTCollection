@@ -32,9 +32,9 @@ section{padding:36px 0 8px}h2{font-size:22px;letter-spacing:-.5px;margin:0 0 4px
 .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
 .tags i{font-style:normal;font-size:12px;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:2px 10px}
 .go{margin-top:10px;font-size:14px;color:var(--acc)}
-.rows{display:grid;gap:12px}
+.rows{display:grid;gap:12px}.flag .row{border-radius:14px 14px 0 0}.peek{margin:0;border:1px solid var(--line);border-top:0;border-radius:0 0 14px 14px;background:#0a0f24;padding:14px 16px;overflow:auto;font-size:12.5px;line-height:1.65;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.peek .k{color:#c792ea}.peek .s{color:#9ece6a}.peek .c{color:#5b6b94}.peek .f{color:#7aa2ff}.peek .n{color:#ff9e64}.peek a{color:var(--acc);font-size:12px;text-decoration:none}
 .row{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--line);border-radius:14px;padding:14px 18px;background:#ffffff04;flex-wrap:wrap}
-.row div{min-width:200px}.row b{display:block}.row small{color:var(--mut)}
+.row div{min-width:200px}.row b{display:block}.row small{display:block;color:var(--mut);margin-top:2px}.row span.links{display:flex;gap:8px;flex-wrap:wrap}
 .row a{color:var(--txt);text-decoration:none;font-size:14px;border:1px solid var(--line);border-radius:999px;padding:6px 14px;white-space:nowrap}
 .row a:hover{border-color:var(--acc)}
 footer{border-top:1px solid var(--line);margin-top:44px;padding:22px 0 40px;color:var(--mut);font-size:14px}
@@ -49,9 +49,9 @@ footer a{color:var(--txt)}
 <h1>Play with <em>real simulations</em>,<br>not screenshots.</h1>
 <p class="sub">Five interactive demos run entirely in your browser, plus three Python flagships including a tax-loss harvester, a neural net with hand-written backprop, and a TSP solver with a published benchmark paper.</p>
 <div class="stats">
-<div class="stat"><b>8</b>projects</div>
-<div class="stat"><b>5</b>live demos</div>
-<div class="stat"><b>1</b>research paper</div>
+<div class="stat"><b>8</b> projects</div>
+<div class="stat"><b>5</b> live demos</div>
+<div class="stat"><b>1</b> research paper</div>
 </div>
 </div>
 </div></div>
@@ -60,20 +60,45 @@ footer a{color:var(--txt)}
 <h2>Live demos</h2>
 <p class="sec-sub">Click any card — no install, no setup.</p>
 <div class="grid">
-<a class="card" href="HRVSTWave/"><div class="icon">🌊</div><h3>HRVSTWave</h3><p>Watch waves ripple, reflect, and interfere on a real 2D physics grid.</p><div class="tags"><i>FDTD</i><i>physics</i></div><div class="go">Open demo →</div></a>
-<a class="card" href="HRVSTGraph/"><div class="icon">🧭</div><h3>HRVSTGraph</h3><p>Race A* against Dijkstra and Greedy through the same maze.</p><div class="tags"><i>A*</i><i>algorithms</i></div><div class="go">Open demo →</div></a>
-<a class="card" href="HRVSTSim/"><div class="icon">🪐</div><h3>HRVSTSim</h3><p>Flings hundreds of bodies around with Barnes–Hut gravity.</p><div class="tags"><i>O(N log N)</i><i>N-body</i></div><div class="go">Open demo →</div></a>
-<a class="card" href="HRVSTCompress/"><div class="icon">🗜️</div><h3>HRVSTCompress</h3><p>Type text, see Huffman and LZW squeeze it byte by byte.</p><div class="tags"><i>Huffman</i><i>LZW</i></div><div class="go">Open demo →</div></a>
-<a class="card" href="HRVSTDraw/HRVSTDraw.html"><div class="icon">✏️</div><h3>HRVSTDraw</h3><p>Draw anything and watch Fourier epicycles reconstruct it.</p><div class="tags"><i>DFT</i><i>epicycles</i></div><div class="go">Open demo →</div></a>
+<a class="card" href="HRVSTWave/"><div class="icon">🌊</div><h3>HRVSTWave</h3><p>Watch waves ripple, reflect, and interfere on a real 2D physics grid.</p><div class="tags"><i>FDTD</i> <i>physics</i></div><div class="go">Open demo →</div></a>
+<a class="card" href="HRVSTGraph/"><div class="icon">🧭</div><h3>HRVSTGraph</h3><p>Race A* against Dijkstra and Greedy through the same maze.</p><div class="tags"><i>A*</i> <i>algorithms</i></div><div class="go">Open demo →</div></a>
+<a class="card" href="HRVSTSim/"><div class="icon">🪐</div><h3>HRVSTSim</h3><p>Flings hundreds of bodies around with Barnes–Hut gravity.</p><div class="tags"><i>O(N log N)</i> <i>N-body</i></div><div class="go">Open demo →</div></a>
+<a class="card" href="HRVSTCompress/"><div class="icon">🗜️</div><h3>HRVSTCompress</h3><p>Type text, see Huffman and LZW squeeze it byte by byte.</p><div class="tags"><i>Huffman</i> <i>LZW</i></div><div class="go">Open demo →</div></a>
+<a class="card" href="HRVSTDraw/HRVSTDraw.html"><div class="icon">✏️</div><h3>HRVSTDraw</h3><p>Draw anything and watch Fourier epicycles reconstruct it.</p><div class="tags"><i>DFT</i> <i>epicycles</i></div><div class="go">Open demo →</div></a>
 </div>
 </section>
 <section>
 <h2>Flagship code</h2>
 <p class="sec-sub">Deeper Python builds — source in the repo.</p>
 <div class="rows">
-<div class="row"><div><b>HRVSTLab</b><small>Tax-loss harvesting scanner on real Yahoo Finance data</small></div><a href="https://github.com/jio32-af/HRVSTCollection/tree/main/HrvstLab">Source ↗</a></div>
-<div class="row"><div><b>HRVSTTsp + paper</b><small>Euclidean TSP solver, 0.00–0.07% optimality gap, 400-trial benchmark</small></div><span><a href="HRVSTTsp/">Site ↗</a> <a href="HRVSTTsp/HRVST_TSP_Benchmark_Paper.pdf">Paper (PDF)</a></span></div>
-<div class="row"><div><b>HRVSTNeural</b><small>8-layer MLP in pure Python, manual backprop, He init</small></div><a href="HRVSTNeural/">Site ↗</a></div>
+<div class="flag"><div class="row"><div><b>HRVSTLab</b> <small>Tax-loss harvesting scanner on real Yahoo Finance data</small></div><a href="https://github.com/jio32-af/HRVSTCollection/tree/main/HrvstLab">Source ↗</a></div><pre class="peek"><span class="k">def</span> <span class="f">get_price_at</span>(ticker: str, timestamp: datetime.datetime):
+    <span class="s">"""Fetch the historical price near `timestamp`.
+    Tries 5-minute intraday data, falls back to daily."""</span>
+    key = <span class="k">None</span>
+    <span class="k">try</span>:
+        day = timestamp.date() <span class="k">if</span> isinstance(timestamp, datetime.datetime) <span class="k">else</span> timestamp
+        key = <span class="s">f"PX|{(ticker or '').strip().upper()}|{day.isoformat()}"</span>
+<a href="https://github.com/jio32-af/HRVSTCollection/blob/main/HrvstLab/Engine.py#L393-L402">Engine.py L393–402 ↗</a></pre></div>
+<div class="flag"><div class="row"><div><b>HRVSTTsp + paper</b> <small>Euclidean TSP solver, 0.00–0.07% optimality gap, 400-trial benchmark</small></div><span class="links"><a href="HRVSTTsp/">Site ↗</a> <a href="HRVSTTsp/HRVST_TSP_Benchmark_Paper.pdf">Paper (PDF)</a></span></div><pre class="peek"><span class="k">def</span> <span class="f">construct_initial</span>(coords, cand, K, eu, ev, E, parent, psize, deg, ea, eb,
+                      work, tour, pos, n):
+    <span class="s">"""Multi-fragment greedy construction: sorted union, candidate
+    patching, provable-closure patching, then assembly."""</span>
+    <span class="k">if</span> n == <span class="n">1</span>:
+        tour[<span class="n">0</span>] = <span class="n">0</span>
+        pos[<span class="n">0</span>] = <span class="n">0</span>
+        deg[<span class="n">0</span>] = <span class="n">2</span>
+        <span class="k">return</span>
+<a href="https://github.com/jio32-af/HRVSTCollection/blob/main/HRVSTTsp/TSP.py#L250-L259">TSP.py L250–259 ↗</a></pre></div>
+<div class="flag"><div class="row"><div><b>HRVSTNeural</b> <small>8-layer MLP in pure Python, manual backprop, He init</small></div><a href="HRVSTNeural/">Site ↗</a></div><pre class="peek"><span class="k">def</span> <span class="f">train_step</span>(self, x, target, lr=<span class="n">0.01</span>):
+    pred = self.forward(x)
+    loss = mse(pred, target)
+    n = len(pred)
+    dout = [<span class="n">2.0</span> * (p - t) / n <span class="k">for</span> p, t <span class="k">in</span> zip(pred, target)]
+    <span class="k">for</span> idx <span class="k">in</span> reversed(range(len(self.layers))):
+        layer = self.layers[idx]
+        x_in = self.cache_xs[idx]
+        z = self.cache_zs[idx]
+<a href="https://github.com/jio32-af/HRVSTCollection/blob/main/HRVSTNeural/network.py#L29-L38">network.py L29–38 ↗</a></pre></div>
 </div>
 </section>
 <footer>Built by Satvik · <a href="https://github.com/jio32-af/HRVSTCollection">jio32-af/HRVSTCollection</a> · PRs welcome</footer>

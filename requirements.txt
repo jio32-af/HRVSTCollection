@@ -1,0 +1,18 @@
+# Shared Python dependencies across HRVSTCollection sub-projects.
+# Browser demos (HRVSTWave/Graph/Sim/Compress/Draw) need nothing: plain HTML/JS.
+# Install: pip install -r requirements.txt
+
+# HRVSTTsp — solver + benchmarks
+numpy~=2.5.3
+scipy
+numba
+
+# HrvstLab — market data + app
+flask~=3.1.0
+pandas~=3.0.5
+yfinance~=1.7.0
+pillow~=12.3.0
+tqdm~=4.67.3
+requests~=2.34.0
+
+# HRVSTNeural — pure standard library (no extras needed)
