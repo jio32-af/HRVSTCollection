@@ -4,18 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HRVSTCollection — Satvik</title>
-<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 16px}li{margin:8px 0}</style>
+<style>
+:root{color-scheme:dark;--bg:#0b1020;--card:#141b33;--line:#263056;--txt:#e8ecf8;--mut:#9aa6c7;--acc:#6ee7b7}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:radial-gradient(1000px 500px at 20% -10%,#1c2a5e,transparent),var(--bg);color:var(--txt)}
+.wrap{max-width:900px;margin:0 auto;padding:48px 20px 64px}header p{color:var(--mut);max-width:60ch}
+h1{margin:0 0 8px;font-size:40px;letter-spacing:-.5px}.tag{display:inline-block;font-size:13px;color:var(--acc);border:1px solid var(--line);border-radius:999px;padding:4px 12px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:28px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;text-decoration:none;color:var(--txt);display:block}
+.card:hover{border-color:var(--acc)}.card h2{margin:0 0 6px;font-size:18px}.card p{margin:0;color:var(--mut);font-size:14px;line-height:1.5}.card span{display:inline-block;margin-top:12px;font-size:14px;color:var(--acc)}
+.foot{margin-top:32px;color:var(--mut);font-size:14px}.foot a{color:var(--txt)}
+</style>
 </head>
 <body>
+<div class="wrap">
+<header>
+<div class="tag">Built from scratch · Math · Physics · AI · Finance</div>
 <h1>HRVSTCollection</h1>
-<p>Computational math, physics, AI, and quant finance projects built from scratch.</p>
-<ul>
-<li><a href="HRVSTWave/">HRVSTWave</a> — 2D FDTD wave simulator</li>
-<li><a href="HRVSTGraph/">HRVSTGraph</a> — A* vs Dijkstra vs Greedy pathfinding lab</li>
-<li><a href="HRVSTSim/">HRVSTSim</a> — Barnes-Hut N-body gravity engine</li>
-<li><a href="HRVSTCompress/">HRVSTCompress</a> — Huffman + 12-bit LZW visualizer</li>
-<li><a href="HRVSTDraw/HRVSTDraw.html">HRVSTDraw</a> — DFT epicycle studio</li>
-</ul>
-<p>Python flagships (see repo): HRVSTLab, HRVSTTsp + research paper, HRVSTNeural.</p>
+<p>Interactive simulations and solvers by Satvik. Open any demo below — everything runs in the browser.</p>
+</header>
+<div class="grid">
+<a class="card" href="HRVSTWave/"><h2>HRVSTWave</h2><p>Real-time 2D wave equation solver with stability monitoring.</p><span>Open demo →</span></a>
+<a class="card" href="HRVSTGraph/"><h2>HRVSTGraph</h2><p>Pathfinding lab benchmarking A*, Dijkstra, and Greedy.</p><span>Open demo →</span></a>
+<a class="card" href="HRVSTSim/"><h2>HRVSTSim</h2><p>Barnes–Hut N-body gravity engine, O(N log N).</p><span>Open demo →</span></a>
+<a class="card" href="HRVSTCompress/"><h2>HRVSTCompress</h2><p>Huffman + 12-bit LZW compression visualizer.</p><span>Open demo →</span></a>
+<a class="card" href="HRVSTDraw/HRVSTDraw.html"><h2>HRVSTDraw</h2><p>DFT epicycle studio that reconstructs drawings.</p><span>Open demo →</span></a>
+</div>
+<p class="foot">Python flagships in the <a href="https://github.com/jio32-af/HRVSTCollection">repo</a>: HRVSTLab · HRVSTTsp + research paper · HRVSTNeural.</p>
+</div>
 </body>
 </html>
