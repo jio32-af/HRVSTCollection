@@ -5,99 +5,28 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HRVSTTsp — TSP Solver + Paper</title>
 <style>
-:root{color-scheme:dark;--bg:#080c1a;--card:#121832;--line:#263056;--txt:#eef1fd;--mut:#9aa6c7;--acc:#6ee7b7}
+:root{color-scheme:dark;--bg:#080c1a;--line:#263056;--txt:#eef1fd;--mut:#9aa6c7;--acc:#6ee7b7}
 *{box-sizing:border-box}body{margin:0;font-family:ui-sans-serif,system-ui,sans-serif;background:var(--bg);color:var(--txt);line-height:1.6}
-.wrap{max-width:760px;margin:0 auto;padding:40px 20px 64px}
+.wrap{max-width:720px;margin:0 auto;padding:48px 20px 64px}
 a.back{color:var(--mut);text-decoration:none;font-size:14px}
 h1{letter-spacing:-1px;margin:8px 0 4px}p.sub{color:var(--mut);margin:0 0 16px}
-canvas{width:100%;border:1px solid var(--line);border-radius:14px;background:#0a0f24}
-.controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:14px 0}
-button{background:var(--acc);color:#06251a;border:0;border-radius:999px;padding:10px 20px;font-size:15px;font-weight:700;cursor:pointer}
-button.ghost{background:none;color:var(--txt);border:1px solid var(--line)}
-.stats{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 22px}
-.stat{border:1px solid var(--line);border-radius:12px;padding:8px 14px;font-size:14px;color:var(--mut)}
-.stat b{color:var(--txt);margin-right:6px}
-.btns{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin:24px 0}
 .btns a{text-decoration:none;font-size:15px;border-radius:999px;padding:10px 20px;border:1px solid var(--line);color:var(--txt)}
 .btns a.primary{background:var(--acc);color:#06251a;border-color:var(--acc);font-weight:700}
 pre{background:#00000055;border:1px solid var(--line);border-radius:12px;padding:14px;overflow:auto;font-size:13px}
-.note{font-size:13px;color:var(--mut)}
 </style>
 </head>
 <body><div class="wrap">
 <a class="back" href="../">← All projects</a>
 <h1>HRVSTTsp</h1>
-<p class="sub">Browser edition: greedy nearest-neighbor + 2-opt, live on canvas. Full Python solver (Delaunay + MST, numba) runs locally — paper below.</p>
-<canvas id="cv" width="720" height="460"></canvas>
-<div class="controls">
-<label>N <input id="n" type="range" min="10" max="300" value="80" style="vertical-align:middle"></label>
-<span id="nval">80</span>
-<button id="solve">New + solve</button>
-</div>
-<div class="stats">
-<div class="stat"><b id="st-n">–</b>cities</div>
-<div class="stat"><b id="st-l">–</b>tour length</div>
-<div class="stat"><b id="st-b">–</b>beta (÷√n)</div>
-<div class="stat"><b id="st-t">–</b>2-opt passes</div>
-</div>
+<p class="sub">Geometric Euclidean TSP solver with Delaunay triangulation + MST candidate pruning. 400-trial benchmark: 0.000%–0.066% mean optimality gap, 94%–100% win rate vs. simulated annealing.</p>
 <div class="btns">
 <a class="primary" href="HRVST_TSP_Benchmark_Paper.pdf">Read the paper (PDF)</a>
-<a href="https://github.com/jio32-af/HRVSTCollection/tree/main/HRVSTTsp">Full solver source ↗</a>
+<a href="https://github.com/jio32-af/HRVSTCollection/tree/main/HRVSTTsp">Source on GitHub ↗</a>
 </div>
-<h2>Run the full solver</h2>
+<h2>Run it</h2>
 <pre>pip install numpy scipy numba
 python3 TSP.py selftest   # correctness checks
 python3 TSP.py            # interactive benchmark</pre>
-<p class="note">Browser demo uses the same tour-length/√n scoring (theory optimum ≈ 0.7124) but a lighter heuristic than the paper's Delaunay+MST pipeline.</p>
-</div>
-<script>
-function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-let pts=[],tour=[];
-const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
-function dist(a,b){return Math.hypot(a[0]-b[0],a[1]-b[1])}
-function tourLen(t){let L=0;for(let i=0;i<t.length;i++)L+=dist(pts[t[i]],pts[t[(i+1)%t.length]]);return L}
-function nearestNeighbor(){
-  const n=pts.length,used=new Array(n).fill(false);tour=[0];used[0]=true;
-  for(let k=1;k<n;k++){let best=-1,bd=1e9;const c=pts[tour[tour.length-1]];
-    for(let i=0;i<n;i++){if(used[i])continue;const d=dist(c,pts[i]);if(d<bd){bd=d;best=i}}
-    tour.push(best);used[best]=true}
-}
-function twoOpt(){
-  const n=tour.length;let passes=0,improved=true;
-  while(improved&&passes<40){improved=false;passes++;
-    for(let i=0;i<n-1&&!improved;i++)for(let k=i+2;k<n;k++){
-      if(i===0&&k===n-1)continue;
-      const a=pts[tour[i]],b=pts[tour[(i+1)%n]],c=pts[tour[k]],d=pts[tour[(k+1)%n]];
-      if(dist(a,b)+dist(c,d)>dist(a,c)+dist(b,d)+1e-12){
-        tour.splice(i+1,k-i,...tour.slice(i+1,k+1).reverse());improved=true;break}
-    }}
-  return passes;
-}
-function draw(){
-  ctx.clearRect(0,0,cv.width,cv.height);
-  ctx.strokeStyle='#6ee7b7';ctx.lineWidth=1.5;ctx.beginPath();
-  tour.forEach((p,i)=>{const X=20+pts[p][0]*(cv.width-40),Y=20+pts[p][1]*(cv.height-40);
-    i?ctx.lineTo(X,Y):ctx.moveTo(X,Y)});
-  ctx.closePath();ctx.stroke();
-  ctx.fillStyle='#eef1fd';
-  pts.forEach(p=>{ctx.beginPath();ctx.arc(20+p[0]*(cv.width-40),20+p[1]*(cv.height-40),2.5,0,7);ctx.fill()});
-}
-function solve(){
-  const n=+document.getElementById('n').value;
-  document.getElementById('nval').textContent=n;
-  const rnd=mulberry32((Math.random()*1e9)|0);
-  pts=Array.from({length:n},()=>[rnd(),rnd()]);
-  const t0=performance.now();
-  nearestNeighbor();const passes=twoOpt();
-  const L=tourLen(tour);draw();
-  document.getElementById('st-n').textContent=n;
-  document.getElementById('st-l').textContent=L.toFixed(3);
-  document.getElementById('st-b').textContent=(L/Math.sqrt(n)).toFixed(4);
-  document.getElementById('st-t').textContent=passes+' ('+Math.round(performance.now()-t0)+'ms)';
-}
-document.getElementById('solve').onclick=solve;
-document.getElementById('n').oninput=e=>document.getElementById('nval').textContent=e.target.value;
-solve();
-</script>
-</body>
+</div></body>
 </html>
