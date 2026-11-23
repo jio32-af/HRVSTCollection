@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HRVSTGraph — Pathfinding Laboratory</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230a0d12'/%3E%3Cpath d='M2 12 L6 12 L6 8 L10 8 L10 4 L14 4' stroke='%2338bdf8' stroke-width='1.6' fill='none'/%3E%3Ccircle cx='2' cy='12' r='1.6' fill='%2322c55e'/%3E%3Ccircle cx='14' cy='4' r='1.6' fill='%23ef4444'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#0a0d12; --panel:#10151d; --panel2:#0d1218; --line:#1f2937;
+  --txt:#e6eaf1; --dim:#8b94a3; --acc:#38bdf8; --good:#22c55e;
+  --bad:#ef4444; --warn:#facc15; --mud:#8a5a24; --water:#1d4ed8;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{background:var(--bg); color:var(--txt); font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif; min-height:100vh;}
+.top{display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:10px 18px; border-bottom:1px solid var(--line); background:var(--panel2);}
+.brand{display:flex; align-items:center; gap:10px;}
+.logo{width:26px; height:26px; border:1px solid var(--acc); border-radius:6px; position:relative; flex:none;}
+.logo::after{content:""; position:absolute; left:5px; right:5px; top:5px; bottom:5px;
+  background:linear-gradient(135deg,transparent 44%,var(--acc) 44%,var(--acc) 56%,transparent 56%);}
+.brand h1{font-size:15px; letter-spacing:.14em; font-weight:700;}
+.brand h1 span{color:var(--acc);}
+.brand p{font-size:11px; color:var(--dim); letter-spacing:.04em;}
+.badges{display:flex; gap:6px; flex-wrap:wrap;}
+.badges span{font-family:var(--mono); font-size:10.5px; color:var(--dim);
+  border:1px solid var(--line); border-radius:4px; padding:2px 8px; background:var(--panel);}
+.layout{display:grid; grid-template-columns:248px minmax(0,1fr) 272px; gap:12px;
+  padding:12px 18px 18px; max-width:1560px; margin:0 auto; align-items:start;}
+.panel{background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden;}
+.panel section{padding:12px 14px; border-bottom:1px solid var(--line);}
+.panel section:last-child{border-bottom:none;}
+.panel h2{font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--dim); margin-bottom:10px; font-weight:600;}
+.panel label{display:block; font-size:12px; color:var(--txt); margin-bottom:8px;}
+.panel select, .panel input[type=range]{width:100%;}
+.panel select{background:var(--bg); color:var(--txt); border:1px solid var(--line);
+  border-radius:6px; padding:6px 8px; font-size:12px; margin-top:4px;}
+.panel input[type=range]{margin-top:6px; accent-color:var(--acc);}
+.val{font-family:var(--mono); color:var(--acc); float:right;}
+.hint{font-size:11px; color:var(--dim); margin-top:6px;}
+.rowline{display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12px;}
+.rowline input{accent-color:var(--acc);}
+.btn{display:block; width:100%; text-align:center; font-family:var(--mono); font-size:12px;
+  padding:8px 10px; margin-bottom:8px; border-radius:6px; cursor:pointer;
+  background:#182230; color:var(--txt); border:1px solid #2b3a4f;}
+.btn:hover{border-color:var(--acc);}
+.btn.primary{background:#0e3a52; border-color:var(--acc); color:#fff;}
+.btn.warnline{background:transparent;}
+.btn:last-child{margin-bottom:0;}
+.btnrow{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+.btnrow .btn{margin-bottom:8px;}
+.brushes{display:grid; grid-template-columns:1fr 1fr; gap:6px;}
+.brush{font-size:11.5px; font-family:var(--mono); padding:7px 4px; text-align:center;
+  border:1px solid var(--line); border-radius:6px; cursor:pointer; color:var(--dim); background:var(--bg);}
+.brush.on{color:#fff; border-color:var(--acc); background:#12202c;}
+.sw{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; vertical-align:baseline;}
+.stage{min-width:0;}
+.board{background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:12px;}
+.boardhead{display:flex; justify-content:space-between; gap:8px; padding:8px 14px;
+  font-family:var(--mono); font-size:11.5px; color:var(--dim); border-bottom:1px solid var(--line);}
+.boardhead b{color:var(--acc); font-weight:600;}
+canvas{display:block; width:100%; height:auto; cursor:crosshair; background:#05070a; touch-action:none;}
+.statusbar{font-family:var(--mono); font-size:11.5px; color:var(--dim); background:var(--panel);
+  border:1px solid var(--line); border-radius:8px; padding:8px 14px; display:flex; gap:18px; flex-wrap:wrap;}
+.statusbar b{color:var(--txt); font-weight:600;}
+.m{display:flex; justify-content:space-between; align-items:baseline; padding:5px 0;
+  border-bottom:1px dashed #1c2532; font-size:12px;}
+.m:last-child{border-bottom:none;}
+.m span{color:var(--dim);}
+.m b{font-family:var(--mono); font-weight:600; font-size:12.5px;}
+.m b.ok{color:var(--good);} .m b.fail{color:var(--bad);} .m b.live{color:var(--acc);}
+table.cmp{width:100%; border-collapse:collapse; font-family:var(--mono); font-size:11.5px;}
+table.cmp th, table.cmp td{padding:5px 4px; text-align:right; border-bottom:1px dashed #1c2532;}
+table.cmp th:first-child, table.cmp td:first-child{text-align:left; color:var(--dim); font-family:inherit;}
+table.cmp th{color:var(--acc); font-weight:600;}
+table.cmp td.win{color:var(--good); font-weight:700;}
+.legend{display:grid; grid-template-columns:1fr 1fr; gap:4px 8px; font-size:11.5px; color:var(--dim);}
+.legend i{font-style:normal;}
+footer{padding:0 18px 18px; max-width:1560px; margin:0 auto; color:var(--dim); font-size:11px; font-family:var(--mono);}
+@media (max-width:1120px){ .layout{grid-template-columns:1fr;} }
+.helpbtn{font-family:var(--mono); font-size:10.5px; color:var(--bg); background:var(--acc);
+  border:none; border-radius:4px; padding:3px 10px; cursor:pointer; font-weight:700;}
+.overlay{position:fixed; inset:0; background:rgba(4,6,9,.72); display:flex;
+  align-items:center; justify-content:center; z-index:50; padding:16px;}
+.overlay[hidden]{display:none;}
+.card{background:var(--panel); border:1px solid var(--acc); border-radius:12px;
+  max-width:430px; width:100%; padding:20px 22px;}
+.card h2{font-family:var(--mono); font-size:12px; letter-spacing:.12em; color:var(--acc); margin-bottom:12px;}
+.card ol{margin:0 0 6px 18px; font-size:13px;}
+.card ol li{margin-bottom:9px;}
+.card ol b{color:var(--acc);}
+.card .btn{margin-top:12px;}
+body.duel .top, body.duel #controls, body.duel #telemetry, body.duel footer, body.duel .statusbar{display:none;}
+body.duel .layout{display:block; max-width:none; padding:12px;}
+body.duel main.stage{display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:start;}
+body.duel .board{margin-bottom:0;}
+@media (max-width:800px){ body.duel main.stage{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><div class="logo"></div>
+    <div><h1>HRVST<span>GRAPH</span></h1><p>weighted-grid pathfinding laboratory</p></div>
+  </div>
+  <div class="badges"><span>HTML5 Canvas</span><span>vanilla JS</span><span>0 dependencies</span><button class="helpbtn" id="btnHelp">? QUICK START</button></div>
+</header>
+
+<div class="layout">
+  <aside class="panel" id="controls">
+    <section>
+      <h2>Search</h2>
+      <label>Algorithm A — primary
+        <select id="algoA">
+          <option value="astar" selected>A* Search</option>
+          <option value="dijkstra">Dijkstra's Algorithm</option>
+          <option value="greedy">Greedy Best-First</option>
+          <option value="bidir">Bidirectional A*</option>
+        </select>
+      </label>
+      <div class="rowline"><input type="checkbox" id="compareToggle"><label for="compareToggle" style="margin:0">Compare mode — split screen</label></div>
+      <label id="algoBWrap" hidden>Algorithm B — challenger
+        <select id="algoB">
+          <option value="dijkstra" selected>Dijkstra's Algorithm</option>
+          <option value="astar">A* Search</option>
+          <option value="greedy">Greedy Best-First</option>
+          <option value="bidir">Bidirectional A*</option>
+        </select>
+      </label>
+    </section>
+    <section>
+      <h2>Heuristic</h2>
+      <label>Distance function
+        <select id="heur">
+          <option value="octile" selected>Octile (8-dir)</option>
+          <option value="manhattan">Manhattan</option>
+          <option value="euclidean">Euclidean</option>
+        </select>
+      </label>
+      <label>Weight multiplier <span class="val" id="wVal">1.0&times;</span>
+        <input type="range" id="weight" min="0" max="3" step="0.1" value="1">
+      </label>
+      <p class="hint">f(n) = g(n) + w&middot;h(n). Ignored by Dijkstra. Pure Greedy ordering is scale-invariant in w.</p>
+    </section>
+    <section>
+      <h2>Run</h2>
+      <label>Animation speed <span class="val" id="spdVal">10 / frame</span>
+        <input type="range" id="speed" min="1" max="60" step="1" value="10">
+      </label>
+      <button class="btn primary" id="btnVis">VISUALIZE</button>
+      <div class="btnrow">
+        <button class="btn" id="btnInst">INSTANT</button>
+        <button class="btn" id="btnBoth">RUN BOTH</button>
+      </div>
+      <button class="btn warnline" id="btnClearPath">CLEAR PATH</button>
+    </section>
+    <section>
+      <h2>Maze &amp; Terrain</h2>
+      <div class="btnrow">
+        <button class="btn" id="btnMazeRB" title="Depth-first carving, long corridors">BACKTRACKER</button>
+        <button class="btn" id="btnMazePrim" title="Randomized Prim's, bushy maze">PRIM'S</button>
+      </div>
+      <div class="btnrow">
+        <button class="btn" id="btnScatter">SCATTER MUD+H2O</button>
+        <button class="btn" id="btnClearWalls">CLEAR WALLS</button>
+      </div>
+      <button class="btn warnline" id="btnClearAll">RESET GRID</button>
+    </section>
+    <section>
+      <h2>Brush — left-drag paints</h2>
+      <div class="brushes">
+        <div class="brush on" data-brush="1"><span class="sw" style="background:#cbd5e1"></span>wall</div>
+        <div class="brush" data-brush="2"><span class="sw" style="background:#8a5a24"></span>mud &times;5</div>
+        <div class="brush" data-brush="3"><span class="sw" style="background:#1d4ed8"></span>water &times;8</div>
+        <div class="brush" data-brush="0"><span class="sw" style="background:#05070a;border:1px solid #444"></span>erase</div>
+      </div>
+      <p class="hint">Drag the green start / red target nodes to move them live. Right-click erases.</p>
+    </section>
+  </aside>
+
+  <main class="stage">
+    <div class="board">
+      <div class="boardhead"><span>A — <b id="labelA">A*</b></span><span id="subA"></span></div>
+      <canvas id="cvA"></canvas>
+    </div>
+    <div class="board" id="boardB" hidden>
+      <div class="boardhead"><span>B — <b id="labelB">Dijkstra</b></span><span id="subB"></span></div>
+      <canvas id="cvB"></canvas>
+    </div>
+    <div class="statusbar">
+      <span>cell <b id="stCell">—</b></span>
+      <span>terrain <b id="stTerr">—</b></span>
+      <span>grid <b>55&times;35 · 8-dir · no corner-cut</b></span>
+      <span id="stMsg">paint walls, pick an algorithm, press VISUALIZE</span>
+    </div>
+  </main>
+
+  <aside class="panel" id="telemetry">
+    <section>
+      <h2>Telemetry · A</h2>
+      <div class="m"><span>algorithm</span><b id="tAalgo">—</b></div>
+      <div class="m"><span>status</span><b id="tAstatus">idle</b></div>
+      <div class="m"><span>nodes visited</span><b id="tAvis">0</b></div>
+      <div class="m"><span>frontier (live)</span><b class="live" id="tAfront">0</b></div>
+      <div class="m"><span>frontier (peak)</span><b id="tApeak">0</b></div>
+      <div class="m"><span>path cost</span><b id="tAcost">—</b></div>
+      <div class="m"><span>compute time</span><b id="tAms">—</b></div>
+      <div class="m"><span>optimality</span><b id="tAopt">—</b></div>
+    </section>
+    <section id="teleBsec" hidden>
+      <h2>Telemetry · B</h2>
+      <div class="m"><span>algorithm</span><b id="tBalgo">—</b></div>
+      <div class="m"><span>status</span><b id="tBstatus">idle</b></div>
+      <div class="m"><span>nodes visited</span><b id="tBvis">0</b></div>
+      <div class="m"><span>frontier (live)</span><b class="live" id="tBfront">0</b></div>
+      <div class="m"><span>frontier (peak)</span><b id="tBpeak">0</b></div>
+      <div class="m"><span>path cost</span><b id="tBcost">—</b></div>
+      <div class="m"><span>compute time</span><b id="tBms">—</b></div>
+      <div class="m"><span>optimality</span><b id="tBopt">—</b></div>
+    </section>
+    <section id="cmpSec" hidden>
+      <h2>A vs B — lower wins</h2>
+      <table class="cmp"><thead><tr><th>metric</th><th>A</th><th>B</th></tr></thead>
+      <tbody id="cmpBody"></tbody></table>
+    </section>
+    <section>
+      <h2>Legend</h2>
+      <div class="legend">
+        <span><i class="sw" style="background:#22c55e"></i>start</span>
+        <span><i class="sw" style="background:#ef4444"></i>target</span>
+        <span><i class="sw" style="background:#cbd5e1"></i>wall (∞)</span>
+        <span><i class="sw" style="background:#8a5a24"></i>mud (×5)</span>
+        <span><i class="sw" style="background:#1d4ed8"></i>water (×8)</span>
+        <span><i class="sw" style="background:rgba(56,189,248,.55)"></i>visited</span>
+        <span><i class="sw" style="background:#facc15"></i>path</span>
+        <span><i class="sw" style="background:#fff"></i>frontier head</span>
+      </div>
+      <p class="hint">Diagonal step = terrain &times; √2. Diagonal moves that cut a wall corner are forbidden.</p>
+    </section>
+  </aside>
+</div>
+
+<div class="overlay" id="helpOverlay" hidden>
+  <div class="card">
+    <h2>HRVSTGRAPH IN 30 SECONDS</h2>
+    <ol>
+      <li><b>Paint</b> — pick wall, mud, or water, then drag on the grid. Right-click erases.</li>
+      <li><b>Move</b> — drag the green start and red target anywhere, anytime.</li>
+      <li><b>Run</b> — pick an algorithm and press VISUALIZE. Watch the telemetry panel.</li>
+      <li><b>Experiment</b> — grow a BACKTRACKER maze, raise the weight slider, or tick Compare mode to race two algorithms.</li>
+    </ol>
+    <button class="btn primary" id="btnGotIt">GOT IT — LET ME PLAY</button>
+  </div>
+</div>
+
+<footer>HRVSTGraph · single-file lab — open index.html, no server or packages needed · optimality = dijkstraCost ÷ pathCost</footer>
+
+<script>
+'use strict';
+/* ================= MODEL ================= */
+const COLS = 55, ROWS = 35, N = COLS * ROWS;
+const EMPTY = 0, WALL = 1, MUD = 2, WATER = 3;
+const STEP = { [EMPTY]: 1, [MUD]: 5, [WATER]: 8 };   // cost to ENTER a cell (orthogonal)
+const SQ2 = Math.SQRT2;
+const idx = (x, y) => y * COLS + x;
+
+let grid = new Uint8Array(N);                        // terrain per cell
+let start = { x: 1, y: 1 }, goal = { x: COLS - 2, y: ROWS - 2 };
+
+/* ================= MIN-HEAP ================= */
+class Heap {
+  constructor(cmp) { this.a = []; this.cmp = cmp; }
+  get size() { return this.a.length; }
+  peek() { return this.a[0]; }
+  push(v) {
+    const a = this.a; a.push(v);
+    let i = a.length - 1;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (this.cmp(a[i], a[p]) < 0) { const t = a[i]; a[i] = a[p]; a[p] = t; i = p; }
+      else break;
+    }
+  }
+  pop() {
+    const a = this.a, top = a[0], last = a.pop();
+    if (a.length) {
+      a[0] = last;
+      let i = 0;
+      for (;;) {
+        const l = 2 * i + 1, r = l + 1;
+        let m = i;
+        if (l < a.length && this.cmp(a[l], a[m]) < 0) m = l;
+        if (r < a.length && this.cmp(a[r], a[m]) < 0) m = r;
+        if (m === i) break;
+        const t = a[i]; a[i] = a[m]; a[m] = t; i = m;
+      }
+    }
+    return top;
+  }
+}
+
+/* ================= HEURISTICS ================= */
+function heuristic(name, x1, y1, x2, y2) {
+  const dx = Math.abs(x1 - x2), dy = Math.abs(y1 - y2);
+  if (name === 'manhattan') return dx + dy;
+  if (name === 'euclidean') return Math.hypot(dx, dy);
+  return Math.max(dx, dy) + (SQ2 - 1) * Math.min(dx, dy);   // octile
+}
+
+/* 8-directional neighbours, no corner cutting. Returns [cellIndex, stepCost]. */
+function nbrs(x, y) {
+  const out = [];
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    if (!dx && !dy) continue;
+    const nx = x + dx, ny = y + dy;
+    if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) continue;
+    const ni = ny * COLS + nx;
+    if (grid[ni] === WALL) continue;
+    if (dx && dy && (grid[y * COLS + nx] === WALL || grid[ny * COLS + x] === WALL)) continue;
+    out.push([ni, ((dx && dy) ? SQ2 : 1) * STEP[grid[ni]]]);
+  }
+  return out;
+}
+
+function reconstruct(came, s, t) {
+  const path = [];
+  let u = t;
+  while (u !== -1) { path.push(u); if (u === s) break; u = came[u]; }
+  path.reverse();
+  return (path.length && path[0] === s) ? path : null;
+}
+
+/* Dijkstra / A* / Greedy. Records exact visit order + frontier size after every pop. */
+function searchUni(algo, hName, w) {
+  const g = new Float64Array(N).fill(Infinity);
+  const came = new Int32Array(N).fill(-1);
+  const closed = new Uint8Array(N);
+  const s = idx(start.x, start.y), t = idx(goal.x, goal.y);
+  const H = (x, y) => heuristic(hName, x, y, goal.x, goal.y);
+  const open = new Heap((a, b) => (a.f - b.f) || (a.h - b.h));
+  g[s] = 0;
+  open.push({ i: s, f: 0, h: 0 });
+  const order = [], fsizes = [];
+  let peak = 1, expanded = 0;
+  while (open.size) {
+    const u = open.pop().i;
+    if (closed[u]) continue;
+    closed[u] = 1; expanded++;
+    order.push(u); fsizes.push(open.size);
+    if (u === t) break;
+    const cx = u % COLS, cy = (u / COLS) | 0;
+    for (const [v, step] of nbrs(cx, cy)) {
+      if (closed[v]) continue;
+      const ng = g[u] + step;
+      if (ng < g[v] - 1e-12) {
+        g[v] = ng; came[v] = u;
+        const h = H(v % COLS, (v / COLS) | 0);
+        const f = algo === 'dijkstra' ? ng : algo === 'greedy' ? w * h : ng + w * h;
+        open.push({ i: v, f, h });
+        if (open.size > peak) peak = open.size;
+      }
+    }
+  }
+  const found = g[t] < Infinity;
+  return { order, fsizes, path: found ? reconstruct(came, s, t) : null,
+           cost: found ? g[t] : Infinity, found, expanded, peak };
+}
+
+/* Bidirectional A*: alternate one expansion per side, stop when
+   minF(fwd) + minF(bwd) >= best meeting cost. Order is interleaved. */
+function searchBidir(hName, w) {
+  const gF = new Float64Array(N).fill(Infinity), gB = new Float64Array(N).fill(Infinity);
+  const cF = new Int32Array(N).fill(-1), cB = new Int32Array(N).fill(-1);
+  const clF = new Uint8Array(N), clB = new Uint8Array(N);
+  const s = idx(start.x, start.y), t = idx(goal.x, goal.y);
+  const hF = (x, y) => heuristic(hName, x, y, goal.x, goal.y);
+  const hB = (x, y) => heuristic(hName, x, y, start.x, start.y);
+  const cmp = (a, b) => (a.f - b.f) || (a.h - b.h);
+  const oF = new Heap(cmp), oB = new Heap(cmp);
+  gF[s] = 0; oF.push({ i: s, f: w * hF(start.x, start.y), h: 0 });
+  gB[t] = 0; oB.push({ i: t, f: w * hB(goal.x, goal.y), h: 0 });
+  const order = [], fsizes = [];
+  let peak = 2, expanded = 0, best = Infinity, meet = -1, guard = 0;
+
+  function expand(open, g, came, closed, otherClosed, otherG, hFn, fwd) {
+    const cur = open.pop();
+    if (!cur) return false;
+    const u = cur.i;
+    if (closed[u]) return true;
+    closed[u] = 1; expanded++;
+    order.push(u); fsizes.push(oF.size + oB.size);
+    if (otherClosed[u]) {
+      const cand = g[u] + otherG[u];
+      if (cand < best - 1e-12) { best = cand; meet = u; }
+    }
+    const cx = u % COLS, cy = (u / COLS) | 0;
+    for (const [v, step] of nbrs(cx, cy)) {
+      if (closed[v]) continue;
+      const ng = g[u] + step;
+      if (ng < g[v] - 1e-12) {
+        g[v] = ng; came[v] = u;
+        const h = hFn(v % COLS, (v / COLS) | 0);
+        open.push({ i: v, f: ng + w * h, h });
+      }
+    }
+    const tot = oF.size + oB.size;
+    if (tot > peak) peak = tot;
+    return true;
+  }
+
+  let fwdTurn = true;
+  while (oF.size && oB.size && guard++ < 4 * N) {
+    if (meet >= 0 && (oF.peek().f + oB.peek().f) >= best - 1e-9) break;
+    if (fwdTurn) { if (!expand(oF, gF, cF, clF, clB, gB, hF, true)) break; }
+    else { if (!expand(oB, gB, cB, clB, clF, gF, hB, false)) break; }
+    fwdTurn = !fwdTurn;
+  }
+  let path = null;
+  if (meet >= 0) {
+    path = [];
+    let u = meet;
+    const fwd = [];
+    while (u !== -1) { fwd.push(u); if (u === s) break; u = cF[u]; }
+    fwd.reverse();
+    path = fwd.slice();
+    u = cB[meet];
+    while (u !== -1) { path.push(u); if (u === t) break; u = cB[u]; }
+    if (path[0] !== s || path[path.length - 1] !== t) path = null;
+  }
+  const found = path !== null;
+  return { order, fsizes, path, cost: found ? best : Infinity, found, expanded, peak };
+}
+
+function runSearch(algo, hName, w) {
+  const t0 = performance.now();
+  const r = algo === 'bidir' ? searchBidir(hName, w) : searchUni(algo, hName, w);
+  r.ms = performance.now() - t0;
+  r.algo = algo; r.hName = hName; r.w = w;
+  return r;
+}
+/* ================= MAZES ================= */
+function shuffled(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = (Math.random() * (i + 1)) | 0;
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+/* Knock a few extra walls down so weighted runs stay interesting (loops). */
+function braid(p) {
+  for (let y = 1; y < ROWS - 1; y++) for (let x = 1; x < COLS - 1; x++) {
+    if (grid[idx(x, y)] !== WALL) continue;
+    const horiz = grid[idx(x - 1, y)] !== WALL && grid[idx(x + 1, y)] !== WALL;
+    const vert = grid[idx(x, y - 1)] !== WALL && grid[idx(x, y + 1)] !== WALL;
+    if ((horiz ^ vert) && Math.random() < p) grid[idx(x, y)] = EMPTY;
+  }
+}
+/* Recursive Backtracker: depth-first carving on the odd lattice. Long corridors. */
+function genBacktracker() {
+  grid.fill(WALL);
+  const seen = new Uint8Array(N);
+  const stack = [[1, 1]];
+  seen[idx(1, 1)] = 1; grid[idx(1, 1)] = EMPTY;
+  while (stack.length) {
+    const top = stack[stack.length - 1], cx = top[0], cy = top[1];
+    let carved = false;
+    const dirs = shuffled([[2, 0], [-2, 0], [0, 2], [0, -2]]);
+    for (const d of dirs) {
+      const nx = cx + d[0], ny = cy + d[1];
+      if (nx < 1 || ny < 1 || nx >= COLS - 1 || ny >= ROWS - 1) continue;
+      if (seen[idx(nx, ny)]) continue;
+      seen[idx(nx, ny)] = 1;
+      grid[idx(cx + d[0] / 2, cy + d[1] / 2)] = EMPTY;
+      grid[idx(nx, ny)] = EMPTY;
+      stack.push([nx, ny]); carved = true;
+      break;
+    }
+    if (!carved) stack.pop();
+  }
+  braid(0.06);
+  start = { x: 1, y: 1 }; goal = { x: COLS - 2, y: ROWS - 2 };
+}
+/* Randomized Prim's: grows from a frontier of walls. Bushy, short corridors. */
+function genPrims() {
+  grid.fill(WALL);
+  const inMaze = new Uint8Array(N);
+  const frontier = [];
+  const sx = 1, sy = 1;
+  inMaze[idx(sx, sy)] = 1; grid[idx(sx, sy)] = EMPTY;
+  const pushWalls = (x, y) => {
+    const ds = [[2, 0], [-2, 0], [0, 2], [0, -2]];
+    for (const d of ds) {
+      const nx = x + d[0], ny = y + d[1];
+      if (nx < 1 || ny < 1 || nx >= COLS - 1 || ny >= ROWS - 1) continue;
+      if (!inMaze[idx(nx, ny)]) frontier.push([nx, ny]);
+    }
+  };
+  pushWalls(sx, sy);
+  while (frontier.length) {
+    const k = (Math.random() * frontier.length) | 0;
+    const cell = frontier[k];
+    frontier[k] = frontier[frontier.length - 1]; frontier.pop();
+    const cx = cell[0], cy = cell[1];
+    if (inMaze[idx(cx, cy)]) continue;
+    const cand = [];
+    const ds = [[2, 0], [-2, 0], [0, 2], [0, -2]];
+    for (const d of ds) {
+      const nx = cx + d[0], ny = cy + d[1];
+      if (nx < 1 || ny < 1 || nx >= COLS - 1 || ny >= ROWS - 1) continue;
+      if (inMaze[idx(nx, ny)]) cand.push(d);
+    }
+    if (!cand.length) continue;
+    const d = cand[(Math.random() * cand.length) | 0];
+    grid[idx(cx + d[0] / 2, cy + d[1] / 2)] = EMPTY;
+    grid[idx(cx, cy)] = EMPTY;
+    inMaze[idx(cx, cy)] = 1;
+    pushWalls(cx, cy);
+  }
+  braid(0.04);
+  start = { x: 1, y: 1 }; goal = { x: COLS - 2, y: ROWS - 2 };
+}
+function scatterTerrain() {
+  for (let i = 0; i < N; i++) {
+    if (grid[i] === WALL) continue;
+    const r = Math.random();
+    grid[i] = r < 0.10 ? MUD : r < 0.16 ? WATER : EMPTY;
+  }
+  grid[idx(start.x, start.y)] = EMPTY;
+  grid[idx(goal.x, goal.y)] = EMPTY;
+}
+
+/* ================= RENDERING ================= */
+const CELL = 20;
+const cvA = document.getElementById('cvA'), cvB = document.getElementById('cvB');
+function fitCanvas(cv) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = COLS * CELL * dpr; cv.height = ROWS * CELL * dpr;
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return ctx;
+}
+let ctxA = fitCanvas(cvA), ctxB = fitCanvas(cvB);
+
+function drawBoard(ctx, run) {
+  const Wpx = COLS * CELL, Hpx = ROWS * CELL;
+  ctx.clearRect(0, 0, Wpx, Hpx);
+  ctx.fillStyle = '#05070a';
+  ctx.fillRect(0, 0, Wpx, Hpx);
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+    const t = grid[y * COLS + x];
+    if (t === WALL) { ctx.fillStyle = '#cbd5e1'; ctx.fillRect(x * CELL, y * CELL, CELL, CELL); }
+    else if (t === MUD) { ctx.fillStyle = '#4a3416'; ctx.fillRect(x * CELL, y * CELL, CELL, CELL); }
+    else if (t === WATER) { ctx.fillStyle = '#14306e'; ctx.fillRect(x * CELL, y * CELL, CELL, CELL); }
+  }
+  if (run && run.shown > 0) {
+    ctx.fillStyle = 'rgba(56,189,248,0.50)';
+    const k = Math.min(run.shown, run.res.order.length);
+    for (let i = 0; i < k; i++) {
+      const c = run.res.order[i];
+      ctx.fillRect((c % COLS) * CELL + 1, ((c / COLS) | 0) * CELL + 1, CELL - 2, CELL - 2);
+    }
+    if (!run.done && k > 0) {   // frontier head
+      const c = run.res.order[k - 1];
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect((c % COLS) * CELL + 4, (((c / COLS) | 0)) * CELL + 4, CELL - 8, CELL - 8);
+    }
+  }
+  if (run && run.done && run.res.path) {
+    ctx.strokeStyle = '#facc15'; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath();
+    run.res.path.forEach((c, i) => {
+      const px = (c % COLS) * CELL + CELL / 2, py = (((c / COLS) | 0)) * CELL + CELL / 2;
+      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+    });
+    ctx.stroke();
+  }
+  const dot = (p, color) => {
+    ctx.fillStyle = '#05070a';
+    ctx.fillRect(p.x * CELL - 1, p.y * CELL - 1, CELL + 2, CELL + 2);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(p.x * CELL + CELL / 2, p.y * CELL + CELL / 2, CELL * 0.32, 0, 7);
+    ctx.fill();
+  };
+  dot(start, '#22c55e'); dot(goal, '#ef4444');
+  ctx.strokeStyle = '#1b2431'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 1; x < COLS; x++) { ctx.moveTo(x * CELL + .5, 0); ctx.lineTo(x * CELL + .5, Hpx); }
+  for (let y = 1; y < ROWS; y++) { ctx.moveTo(0, y * CELL + .5); ctx.lineTo(Wpx, y * CELL + .5); }
+  ctx.stroke();
+}
+/* ================= RUNS + ANIMATION ================= */
+const ALGO_NAMES = { dijkstra: "Dijkstra's", astar: 'A*', greedy: 'Greedy BF', bidir: 'Bi-A*' };
+let runA = null, runB = null;      // {res, shown, done, speed, optimal}
+let raf = 0, hasResult = false;
+
+const $ = id => document.getElementById(id);
+const els = {
+  algoA: $('algoA'), algoB: $('algoB'), heur: $('heur'), weight: $('weight'), wVal: $('wVal'),
+  speed: $('speed'), spdVal: $('spdVal'), compare: $('compareToggle'),
+  labelA: $('labelA'), labelB: $('labelB'), subA: $('subA'), subB: $('subB'),
+  boardB: $('boardB'), teleBsec: $('teleBsec'), cmpSec: $('cmpSec'), cmpBody: $('cmpBody'),
+  stMsg: $('stMsg'), stCell: $('stCell'), stTerr: $('stTerr'),
+};
+const params = () => ({ h: els.heur.value, w: parseFloat(els.weight.value) });
+
+function makeRun(algo) {
+  const p = params();
+  const res = runSearch(algo, p.h, p.w);
+  const optimal = algo === 'dijkstra' ? res.cost
+    : runSearch('dijkstra', p.h, p.w).cost;   // silent baseline for the ratio
+  return { res, optimal, shown: 0, done: false, speed: parseInt(els.speed.value, 10) };
+}
+function drawAll() {
+  drawBoard(ctxA, runA);
+  if (els.compare.checked) drawBoard(ctxB, runB);
+}
+function activeRuns() {
+  return els.compare.checked ? [runA, runB].filter(Boolean) : (runA ? [runA] : []);
+}
+function tick() {
+  let alive = false;
+  for (const R of activeRuns()) {
+    if (!R || R.done) continue;
+    R.shown += R.speed;
+    if (R.shown >= R.res.order.length) { R.shown = R.res.order.length; R.done = true; }
+    else alive = true;
+  }
+  drawAll(); updatePanels();
+  if (alive) raf = requestAnimationFrame(tick);
+  else { raf = 0; updatePanels(); refreshCompare(); if (duelActive) exitDuel(); }
+}
+function kick() { if (!raf) raf = requestAnimationFrame(tick); }
+
+/* ================= DUEL FOCUS MODE ================= */
+let duelActive = false;
+function enterDuel() {
+  duelActive = true;
+  document.body.classList.add('duel');
+}
+function exitDuel() {
+  if (!duelActive) return;
+  duelActive = false;
+  document.body.classList.remove('duel');
+}
+window.addEventListener('keydown', e => { if (duelActive && e && e.key === 'Escape') exitDuel(); });
+
+function startAnimated(both) {
+  stopTick();
+  runA = makeRun(els.algoA.value);
+  runB = (both || els.compare.checked) ? makeRun(els.algoB.value) : null;
+  hasResult = true;
+  refreshLabels();
+  drawAll(); updatePanels();
+  kick();
+}
+function startInstant() {
+  stopTick();
+  runA = makeRun(els.algoA.value);
+  runA.shown = runA.res.order.length; runA.done = true;
+  if (els.compare.checked) {
+    runB = makeRun(els.algoB.value);
+    runB.shown = runB.res.order.length; runB.done = true;
+  } else runB = null;
+  hasResult = true;
+  refreshLabels();
+  drawAll(); updatePanels(); refreshCompare();
+}
+function stopTick() { if (raf) { cancelAnimationFrame(raf); raf = 0; } }
+function invalidate() {   // grid edited -> old overlay is stale
+  stopTick();
+  runA = null; runB = null; hasResult = false;
+  drawAll(); updatePanels(); refreshCompare();
+  els.stMsg.textContent = 'grid edited — press VISUALIZE';
+}
+
+/* ================= TELEMETRY ================= */
+const fmtCost = c => (c < Infinity ? c.toFixed(2) : '∞');
+const fmtMs = m => m < 10 ? m.toFixed(2) + ' ms' : m.toFixed(1) + ' ms';
+function optimality(R) {
+  if (!R.res.found || !(R.optimal < Infinity)) return '—';
+  return (R.optimal / R.res.cost).toFixed(3);
+}
+function paintTele(pfx, R, name) {
+  const g = s => $(pfx + s);
+  if (!R) {
+    g('algo').textContent = name; g('status').textContent = 'idle';
+    g('status').className = '';
+    g('vis').textContent = '0'; g('front').textContent = '0'; g('peak').textContent = '0';
+    g('cost').textContent = '—'; g('ms').textContent = '—'; g('opt').textContent = '—';
+    return;
+  }
+  const done = R.done, k = Math.min(R.shown, R.res.order.length);
+  g('algo').textContent = name;
+  const st = g('status');
+  if (!done) { st.textContent = 'searching…'; st.className = 'live'; }
+  else if (R.res.found) { st.textContent = 'PATH FOUND'; st.className = 'ok'; }
+  else { st.textContent = 'NO PATH'; st.className = 'fail'; }
+  g('vis').textContent = done ? R.res.expanded : k;
+  g('front').textContent = done ? R.res.fsizes[R.res.fsizes.length - 1] || 0 : (R.res.fsizes[k - 1] || 0);
+  g('peak').textContent = R.res.peak;
+  g('cost').textContent = done ? fmtCost(R.res.cost) : '…';
+  g('cost').className = done ? (R.res.found ? 'ok' : 'fail') : '';
+  g('ms').textContent = fmtMs(R.res.ms);
+  const op = done ? optimality(R) : '…';
+  g('opt').textContent = op;
+  g('opt').className = (done && op !== '—') ? (parseFloat(op) >= 0.999 ? 'ok' : '') : '';
+}
+function updatePanels() {
+  paintTele('tA', runA, ALGO_NAMES[els.algoA.value]);
+  if (els.compare.checked) paintTele('tB', runB, ALGO_NAMES[els.algoB.value]);
+  const parts = [];
+  if (runA && runA.done) parts.push('A ' + (runA.res.found ? 'cost ' + fmtCost(runA.res.cost) : 'NO PATH'));
+  if (runB && runB.done && els.compare.checked)
+    parts.push('B ' + (runB.res.found ? 'cost ' + fmtCost(runB.res.cost) : 'NO PATH'));
+  if (parts.length) els.stMsg.textContent = parts.join('   ·   ');
+}
+function refreshLabels() {
+  const p = params();
+  const sub = p.h + ' · w=' + p.w.toFixed(1);
+  els.labelA.textContent = ALGO_NAMES[els.algoA.value];
+  els.subA.textContent = els.algoA.value === 'dijkstra' ? 'uniform-cost · heuristic ignored' : sub;
+  els.labelB.textContent = ALGO_NAMES[els.algoB.value];
+  els.subB.textContent = els.algoB.value === 'dijkstra' ? 'uniform-cost · heuristic ignored' : sub;
+}
+function refreshCompare() {
+  if (!els.compare.checked) return;
+  const rows = [
+    ['visited', runA && runA.res.expanded, runB && runB.res.expanded, true],
+    ['peak frontier', runA && runA.res.peak, runB && runB.res.peak, true],
+    ['path cost', runA && runA.res.cost, runB && runB.res.cost, true],
+    ['compute ms', runA && runA.res.ms, runB && runB.res.ms, true],
+    ['optimality', runA && optimality(runA), runB && optimality(runB), false],
+  ];
+  els.cmpBody.innerHTML = rows.map(r => {
+    const fmt = v => v === null || v === undefined ? '—'
+      : (typeof v === 'number' ? (v < Infinity ? (Number.isInteger(v) ? v : v.toFixed(2)) : '∞') : v);
+    let ca = '', cb = '';
+    const na = parseFloat(r[1]), nb = parseFloat(r[2]);
+    if (r[3] && isFinite(na) && isFinite(nb) && na !== nb) {
+      if (r[0] === 'compute ms' && Math.abs(na - nb) < 0.005) { /* tie: too close to call */ }
+      else if (na < nb) ca = ' class="win"'; else cb = ' class="win"';
+    }
+    if (!r[3] && !isNaN(na) && !isNaN(nb) && na !== nb) { if (na > nb) ca = ' class="win"'; else cb = ' class="win"'; }
+    return '<tr><td>' + r[0] + '</td><td' + ca + '>' + fmt(r[1]) + '</td><td' + cb + '>' + fmt(r[2]) + '</td></tr>';
+  }).join('');
+}
+/* ================= INPUT: paint + drag nodes ================= */
+let brush = WALL, drawing = false, dragNode = null, hoverCell = null;
+document.querySelectorAll('.brush').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.brush').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  brush = parseInt(b.dataset.brush, 10);
+}));
+function eventCell(cv, ev) {
+  const r = cv.getBoundingClientRect();
+  const x = Math.floor((ev.clientX - r.left) / r.width * COLS);
+  const y = Math.floor((ev.clientY - r.top) / r.height * ROWS);
+  if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return null;
+  return { x, y };
+}
+const TERR_NAMES = ['empty', 'wall', 'mud ×5', 'water ×8'];
+function paintAt(cell, erase) {
+  const i = idx(cell.x, cell.y);
+  if ((cell.x === start.x && cell.y === start.y) || (cell.x === goal.x && cell.y === goal.y)) return;
+  const v = erase ? EMPTY : brush;
+  if (grid[i] !== v) { grid[i] = v; invalidate(); }
+}
+function liveRerun() {   // real-time feedback while dragging nodes
+  if (!hasResult) { drawAll(); return; }
+  stopTick();
+  runA = makeRun(els.algoA.value);
+  runA.shown = runA.res.order.length; runA.done = true;
+  if (els.compare.checked) {
+    runB = makeRun(els.algoB.value);
+    runB.shown = runB.res.order.length; runB.done = true;
+  }
+  refreshLabels(); drawAll(); updatePanels(); refreshCompare();
+}
+function bindBoard(cv) {
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  cv.addEventListener('pointerdown', e => {
+    const c = eventCell(cv, e);
+    if (!c) return;
+    cv.setPointerCapture(e.pointerId);
+    if (c.x === start.x && c.y === start.y) dragNode = 'start';
+    else if (c.x === goal.x && c.y === goal.y) dragNode = 'goal';
+    else { drawing = true; paintAt(c, e.button === 2); }
+  });
+  cv.addEventListener('pointermove', e => {
+    const c = eventCell(cv, e);
+    hoverCell = c;
+    if (c) {
+      els.stCell.textContent = c.x + ',' + c.y;
+      els.stTerr.textContent = TERR_NAMES[grid[idx(c.x, c.y)]];
+    }
+    if (dragNode && c) {
+      if (grid[idx(c.x, c.y)] === WALL) return;
+      const other = dragNode === 'start' ? goal : start;
+      if (c.x === other.x && c.y === other.y) return;
+      const p = dragNode === 'start' ? start : goal;
+      if (p.x !== c.x || p.y !== c.y) { p.x = c.x; p.y = c.y; grid[idx(c.x, c.y)] = EMPTY; liveRerun(); }
+    } else if (drawing && c) paintAt(c, (e.buttons & 2) !== 0);
+  });
+  const up = () => { drawing = false; dragNode = null; };
+  cv.addEventListener('pointerup', up);
+  cv.addEventListener('pointercancel', up);
+  cv.addEventListener('pointerleave', () => { hoverCell = null; });
+}
+bindBoard(cvA); bindBoard(cvB);
+
+/* ================= UI WIRING ================= */
+$('btnVis').addEventListener('click', () => startAnimated(false));
+$('btnBoth').addEventListener('click', () => {
+  stopTick();   // cancel any in-progress run, even mid-animation
+  if (!els.compare.checked) { els.compare.checked = true; onCompareToggle(); }
+  enterDuel();  // hide all chrome: A left, B right, nothing else
+  startAnimated(true);
+});
+$('btnInst').addEventListener('click', startInstant);
+$('btnClearPath').addEventListener('click', invalidate);
+$('btnMazeRB').addEventListener('click', () => { stopTick(); genBacktracker(); invalidate(); els.stMsg.textContent = 'recursive-backtracker maze carved'; });
+$('btnMazePrim').addEventListener('click', () => { stopTick(); genPrims(); invalidate(); els.stMsg.textContent = "randomized prim's maze grown"; });
+$('btnScatter').addEventListener('click', () => { stopTick(); scatterTerrain(); invalidate(); els.stMsg.textContent = 'mud + water scattered (10% / 6%)'; });
+$('btnClearWalls').addEventListener('click', () => {
+  stopTick();
+  for (let i = 0; i < N; i++) if (grid[i] === WALL) grid[i] = EMPTY;
+  invalidate(); els.stMsg.textContent = 'walls cleared — terrain kept';
+});
+$('btnClearAll').addEventListener('click', () => {
+  stopTick();
+  grid.fill(EMPTY);
+  start = { x: 1, y: 1 }; goal = { x: COLS - 2, y: ROWS - 2 };
+  invalidate(); els.stMsg.textContent = 'grid reset';
+});
+function onCompareToggle() {
+  const on = els.compare.checked;
+  els.boardB.hidden = !on; els.teleBsec.hidden = !on; els.cmpSec.hidden = !on;
+  $('algoBWrap').hidden = !on;
+  ctxB = fitCanvas(cvB);
+  stopTick();
+  runB = null; hasResult = !!runA;
+  refreshLabels(); drawAll(); updatePanels(); refreshCompare();
+}
+els.compare.addEventListener('change', onCompareToggle);
+els.weight.addEventListener('input', () => {
+  els.wVal.textContent = parseFloat(els.weight.value).toFixed(1) + '×';
+  refreshLabels();
+  if (hasResult) liveRerun();
+});
+els.speed.addEventListener('input', () => {
+  els.spdVal.textContent = els.speed.value + ' / frame';
+  const s = parseInt(els.speed.value, 10);
+  if (runA) runA.speed = s;
+  if (runB) runB.speed = s;
+});
+for (const id of ['algoA', 'algoB', 'heur']) {
+  $(id).addEventListener('change', () => {
+    refreshLabels();
+    if (hasResult) liveRerun();
+  });
+}
+window.addEventListener('resize', () => {
+  ctxA = fitCanvas(cvA); ctxB = fitCanvas(cvB);
+  drawAll();
+});
+
+/* ================= QUICK-START OVERLAY ================= */
+function showHelp() { $('helpOverlay').hidden = false; }
+function hideHelp() {
+  $('helpOverlay').hidden = true;
+  try { localStorage.setItem('hrvstgraph_seen', '1'); } catch (e) {}
+}
+$('btnHelp').addEventListener('click', showHelp);
+$('btnGotIt').addEventListener('click', hideHelp);
+$('helpOverlay').addEventListener('click', e => { if (e.target.id === 'helpOverlay') hideHelp(); });
+try {
+  if (!localStorage.getItem('hrvstgraph_seen')) showHelp();   // first visit only
+} catch (e) { showHelp(); }
+
+/* ================= INIT ================= */
+refreshLabels();
+updatePanels();
+drawAll();
+</script>
+</body>
+</html>

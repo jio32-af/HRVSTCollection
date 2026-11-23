@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>HRVSTDraw — two-circle drawing</title>
+<title>HRVSTDraw — epicycle drawing</title>
 <style>
   :root{
     --bg:#141210; --panel:#1e1a15; --line:#33291d;
@@ -42,22 +42,18 @@
   .row label{flex:1}
   .row output{width:34px; text-align:right; color:var(--acc); font-variant-numeric:tabular-nums}
   input[type=range]{flex:1.4; accent-color:var(--acc)}
-  input[type=number]{
-    width:52px; background:var(--bg); color:var(--ink);
-    border:1px solid var(--line); border-radius:6px; padding:4px 6px; font-size:12.5px;
-  }
-  .swatches{display:flex; gap:8px; flex-wrap:wrap}
-  .sw{
-    width:26px; height:26px; border-radius:50%; cursor:pointer;
-    border:2px solid transparent; padding:0;
-  }
-  .sw.on{border-color:var(--ink)}
-  .chips{display:flex; gap:6px; flex-wrap:wrap}
-  .chips button{padding:5px 9px; border-radius:20px; font-size:12px}
+  input[type=number]{width:64px; background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:4px 6px; font-size:12.5px}
+  .note{font-size:11.5px; color:var(--mut); margin:6px 0}
   .tog{display:flex; gap:6px; flex-wrap:wrap}
   .tog button{font-size:11.5px; padding:5px 8px}
-  #stage{flex:1; position:relative; min-width:0; background:#0e0c0a}
-  #stage canvas{position:absolute; inset:0; width:100%; height:100%}
+  #stage{flex:1; display:flex; min-height:0; min-width:0; background:#0e0c0a}
+  .pane{flex:1; position:relative; min-width:0; min-height:0}
+  .pane + .pane{border-left:1px solid var(--line)}
+  .pane canvas{position:absolute; inset:0; width:100%; height:100%}
+  .tag{
+    position:absolute; top:8px; left:10px; font-size:11px; letter-spacing:.08em;
+    color:var(--mut); pointer-events:none; text-transform:uppercase;
+  }
   #draw{cursor:crosshair; touch-action:none}
   #badge{
     position:absolute; left:12px; bottom:12px; font-size:12px;
@@ -65,13 +61,13 @@
     border-radius:6px; padding:6px 10px; color:var(--mut); pointer-events:none;
   }
   #badge b{color:var(--acc)}
-  @media (max-width:760px){ main{flex-direction:column} aside{width:auto; border-right:0; border-bottom:1px solid var(--line)} }
+  @media (max-width:760px){ main{flex-direction:column} aside{width:auto; border-right:0; border-bottom:1px solid var(--line)} #stage{flex-direction:column} .pane + .pane{border-left:0; border-top:1px solid var(--line)} }
 </style>
 </head>
 <body>
 <header>
   <h1>HRVST<span>Draw</span></h1>
-  <p>two circles &middot; x(t) from the big one, y(t) from the small one, joined at a right angle</p>
+  <p>draw left &middot; circles retrace it right</p>
   <div class="sp"></div>
   <button id="saveBtn" type="button">Save PNG</button>
   <button id="clearBtn" type="button">Clear drawing</button>
@@ -80,32 +76,38 @@
   <aside>
     <section>
       <h2>Pen</h2>
-      <div class="swatches" id="swatches"></div>
-      <div class="row"><label for="size">Size</label><input id="size" type="range" min="1" max="30" value="4"><output id="sizeOut">4</output></div>
       <div class="row"><button id="eraserBtn" type="button">Eraser: off</button></div>
+      <div class="note">Pen is fixed 1px monochrome. Auto beats your error target; Manual fixes the circle count.</div>
     </section>
     <section>
-      <h2>Circles n1 : n2</h2>
-      <div class="row"><label for="n1">Big circle n1</label><input id="n1" type="number" min="1" max="8" step="1" value="3"></div>
-      <div class="row"><label for="n2">Small circle n2</label><input id="n2" type="number" min="1" max="8" step="1" value="2"></div>
-      <div class="chips" id="presets"></div>
-      <div class="row"><button id="traceBtn" type="button">Trace until closed</button></div>
+      <h2>Epicycles (DFT)</h2>
+      <div class="row"><label>Mode</label><div class="tog"><button id="autoBtn" type="button" class="on">Auto</button><button id="manBtn" type="button">Manual</button></div></div>
+      <div class="row"><label for="speed">Speed</label><input id="speed" type="range" min="0.25" max="4" step="0.25" value="1"><output id="speedOut">1×</output></div>
+      <div id="autoCtl">
+        <div class="row"><label for="errTarget">Target error px</label><input id="errTarget" type="number" min="0.001" step="0.001" value="2"></div>
+
+      </div>
+      <div id="manualCtl" style="display:none">
+        <div class="row"><label for="manualCount">Circles</label><input id="manualCount" type="number" min="1" max="4096" step="1" value="60"></div>
+      </div>
+      <div class="row"><button id="traceBtn" type="button">Trace my drawing</button></div>
+      <div class="row"><button id="playBtn" type="button" disabled>Pause</button></div>
+      <div class="row"><button id="compareBtn" type="button" disabled>Compare</button></div>
+      <div class="note">Uses your last stroke. Release the pen and the circles trace it automatically.</div>
     </section>
     <section>
       <h2>Guide</h2>
       <div class="tog">
         <button id="gCircles" type="button" class="on">Circles</button>
-        <button id="gAxes" type="button" class="on">Right angle</button>
-        <button id="gCurve" type="button" class="on">Curve</button>
+        <button id="gAxes" type="button" class="on">Arms</button>
+        <button id="gCurve" type="button" class="on">Trail</button>
       </div>
-      <div class="row"><label for="r2">Small radius</label><input id="r2" type="range" min="30" max="200" value="90"><output id="r2Out">90</output></div>
     </section>
   </aside>
   <div id="stage">
-    <canvas id="guide"></canvas>
-    <canvas id="anim"></canvas>
-    <canvas id="draw"></canvas>
-    <div id="badge">pick n1 : n2, then Trace — the pen stops when it lands exactly on its start</div>
+    <div class="pane" id="leftPane"><canvas id="draw"></canvas><div class="tag">draw</div></div>
+    <div class="pane" id="rightPane"><canvas id="guide"></canvas><canvas id="anim"></canvas><div class="tag">trace</div></div>
+    <div id="badge">draw on the left — circles retrace it on the right</div>
   </div>
 </main>
 <script>
@@ -116,126 +118,333 @@ const stage = $("stage"), badge = $("badge");
 const g = guideC.getContext("2d"), a = animC.getContext("2d"), d = drawC.getContext("2d");
 
 const S = {
-  n1: 3, n2: 2, r2frac: 0.16,
-  color: "#f2ede1", size: 4, eraser: false,
+  errTarget: 2, countMode: "auto", manualCount: 60,
+  color: "#ece5d8", size: 1, eraser: false,
   showCircles: true, showAxes: true, showCurve: true,
-  tracing: false, traceT: 0, W: 0, H: 0
+  coefs: [], samples: null, animT: 0, playing: false, gen: 0,
+  W: 0, H: 0, RW: 0, RH: 0, prevTip: null,
+  mode: "split", speed: 1, lastErr: 0
 };
 const TAU = Math.PI * 2;
+const SAMPLES = 4096;  /* uniform samples per stroke for the DFT (power of 2 for the FFT) */
+const LOOP_SECS = 8;   /* seconds per visible pass of the tip */
+const TRACE_END = 0.5; /* visible half of the mirrored loop: stroke start -> stroke end */
 
-function fit() {
-  const r = stage.getBoundingClientRect();
+function fitOne(c, x) {
+  const r = c.getBoundingClientRect();
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  S.W = Math.max(50, r.width); S.H = Math.max(50, r.height);
-  for (const c of [guideC, animC, drawC]) {
-    c.width = Math.round(S.W * dpr); c.height = Math.round(S.H * dpr);
+  const w = Math.max(50, r.width), h = Math.max(50, r.height);
+  c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+  x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { w, h };
+}
+function fit() {
+  if (S.mode === "compare") {
+    const gd = fitOne(guideC, g); S.RW = gd.w; S.RH = gd.h;
+    fitOne(animC, a);
+    drawCompare();
+    return;
   }
-  for (const x of [g, a, d]) x.setTransform(dpr, 0, 0, dpr, 0, 0);
-  drawGuideStatic();
+  const dd = fitOne(drawC, d); S.W = dd.w; S.H = dd.h;
+  const gd = fitOne(guideC, g); S.RW = gd.w; S.RH = gd.h;
+  fitOne(animC, a);
+  resetTrail();
 }
 window.addEventListener("resize", fit);
-
-/* Two-circle harmonograph: A(t) rides the big circle, B(t) the small one.
-   The drawing point P(t) = (A.x, B.y): x from the first circle, y from
-   the smaller one, joined by lines meeting at a right angle at P. */
-function layout() {
-  const R1 = Math.min(S.W, S.H) * 0.30;
-  const R2 = S.r2frac * Math.min(S.W, S.H);
-  return {
-    R1, R2,
-    o1: { x: S.W * 0.30, y: S.H * 0.46 },
-    o2: { x: S.W * 0.64, y: S.H * 0.60 }
-  };
-}
-function pointAt(t) {
-  const L = layout();
-  const ax = L.o1.x + L.R1 * Math.cos(S.n1 * t);
-  const ay = L.o1.y + L.R1 * Math.sin(S.n1 * t);
-  const bx = L.o2.x + L.R2 * Math.cos(S.n2 * t);
-  const by = L.o2.y + L.R2 * Math.sin(S.n2 * t);
-  return { ax, ay, bx, by, px: ax, py: by, L };
-}
-function say(html) { badge.innerHTML = html; }
-
-function drawGuideStatic() {
-  g.clearRect(0, 0, S.W, S.H);
-  const L = layout();
-  if (S.showCircles) {
-    g.strokeStyle = "rgba(232,163,61,.55)"; g.lineWidth = 1.5;
-    g.beginPath(); g.arc(L.o1.x, L.o1.y, L.R1, 0, TAU); g.stroke();
-    g.strokeStyle = "rgba(126,180,196,.55)";
-    g.beginPath(); g.arc(L.o2.x, L.o2.y, L.R2, 0, TAU); g.stroke();
-    g.fillStyle = "rgba(236,229,216,.7)";
-    g.beginPath(); g.arc(L.o1.x, L.o1.y, 2.5, 0, TAU); g.fill();
-    g.beginPath(); g.arc(L.o2.x, L.o2.y, 2.5, 0, TAU); g.fill();
-  }
-  if (S.showCurve) {
-    g.strokeStyle = "rgba(236,229,216,.28)"; g.lineWidth = 1.2;
-    g.beginPath();
-    for (let k = 0; k <= 720; k++) {
-      const p = pointAt(k / 720 * TAU);
-      if (k === 0) g.moveTo(p.px, p.py); else g.lineTo(p.px, p.py);
-    }
-    g.closePath(); g.stroke();
-  }
-}
 
 const reduced = window.matchMedia &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-function traceStep() {
-  const speed = TAU / (reduced ? 1 : 240);
-  const t0 = S.traceT, t1 = Math.min(S.traceT + speed, TAU);
-  const p0 = pointAt(t0);
-  g.strokeStyle = "#e8a33d"; g.lineWidth = 2;
-  g.beginPath(); g.moveTo(p0.px, p0.py);
-  const steps = Math.max(2, Math.ceil((t1 - t0) / (TAU / 720)));
-  for (let k = 1; k <= steps; k++) {
-    const p = pointAt(t0 + (t1 - t0) * k / steps);
-    g.lineTo(p.px, p.py);
+/* ---- DFT epicycle machine ----
+   The stroke becomes a complex signal z[n] = x[n] + i·y[n].
+   c[k] = (1/N) Σ z[n]·e^(−i·2πkn/N) is the radius/phase of the circle
+   spinning at frequency k; chaining them tip-to-tail rebuilds the path. */
+
+/* Resample an open stroke to N evenly spaced points along an out-and-back
+   (mirrored) traversal. The periodic extension is then smooth at the stroke
+   end, so the tip stops exactly where the drawing stops instead of jerking
+   back to the start. The visible trace is the first half, start -> end. */
+function resampleOpen(pts, N) {
+  if (!pts || pts.length < 2) return null;
+  const P = pts.concat(pts.slice(1, -1).reverse());
+  const cum = [0];
+  for (let i = 1; i < P.length; i++)
+    cum.push(cum[i - 1] + Math.hypot(P[i].x - P[i - 1].x, P[i].y - P[i - 1].y));
+  const total = cum[cum.length - 1];
+  if (!(total > 0)) return null;
+  const out = [];
+  let j = 0;
+  for (let i = 0; i < N; i++) {
+    const s = total * i / (N - 1);
+    while (j < cum.length - 2 && cum[j + 1] < s) j++;
+    const seg = (cum[j + 1] - cum[j]) || 1;
+    const f = Math.min(1, Math.max(0, (s - cum[j]) / seg));
+    out.push({ x: P[j].x + (P[j + 1].x - P[j].x) * f, y: P[j].y + (P[j + 1].y - P[j].y) * f });
   }
-  g.stroke();
-  const p = pointAt(t1);
-  a.clearRect(0, 0, S.W, S.H);
-  if (S.showAxes) {
-    a.strokeStyle = "rgba(236,229,216,.35)"; a.lineWidth = 1;
-    a.setLineDash([5, 5]);
-    a.beginPath(); a.moveTo(p.ax, p.ay); a.lineTo(p.px, p.py); a.stroke();
-    a.beginPath(); a.moveTo(p.bx, p.by); a.lineTo(p.px, p.py); a.stroke();
-    a.setLineDash([]);
-  }
-  a.fillStyle = "#e8a33d";
-  a.beginPath(); a.arc(p.ax, p.ay, 4, 0, TAU); a.fill();
-  a.fillStyle = "#7eb4c4";
-  a.beginPath(); a.arc(p.bx, p.by, 4, 0, TAU); a.fill();
-  a.fillStyle = "#f2ede1";
-  a.beginPath(); a.arc(p.px, p.py, 4.5, 0, TAU); a.fill();
-  S.traceT = t1;
-  if (t1 >= TAU) {
-    S.tracing = false;
-    $("traceBtn").disabled = false;
-    a.clearRect(0, 0, S.W, S.H);
-    const q = pointAt(0);
-    const shut = Math.hypot(q.px - p.px, q.py - p.py);
-    say(shut < 1e-6
-      ? "n1:n2 = <b>" + S.n1 + ":" + S.n2 + "</b> — pen landed exactly on its start: <b>perfectly the same ✓</b>"
-      : "trace finished (gap " + shut.toFixed(2) + "px)");
-    return;
-  }
-  requestAnimationFrame(traceStep);
-}
-function startTrace() {
-  if (S.tracing) return;
-  drawGuideStatic();
-  a.clearRect(0, 0, S.W, S.H);
-  S.traceT = 0; S.tracing = true;
-  $("traceBtn").disabled = true;
-  say("tracing n1:n2 = <b>" + S.n1 + ":" + S.n2 + "</b> …");
-  requestAnimationFrame(traceStep);
+  return out;
 }
 
-/* Freehand drawing on the top layer (guide stays untouched beneath). */
-let stroking = false, last = null, midPrev = null;
+/* Iterative radix-2 FFT (forward, negative exponent), in place. */
+function fft(re, im) {
+  const N = re.length;
+  for (let i = 1, j = 0; i < N; i++) {
+    let bit = N >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) {
+      const tr = re[i]; re[i] = re[j]; re[j] = tr;
+      const ti = im[i]; im[i] = im[j]; im[j] = ti;
+    }
+  }
+  for (let len = 2; len <= N; len <<= 1) {
+    const ang = -TAU / len;
+    const wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < N; i += len) {
+      let c = 1, s = 0;
+      for (let j = 0; j < len / 2; j++) {
+        const ur = re[i + j], ui = im[i + j];
+        const vr = re[i + j + len / 2] * c - im[i + j + len / 2] * s;
+        const vi = re[i + j + len / 2] * s + im[i + j + len / 2] * c;
+        re[i + j] = ur + vr; im[i + j] = ui + vi;
+        re[i + j + len / 2] = ur - vr; im[i + j + len / 2] = ui - vi;
+        const nc = c * wr - s * wi, ns = c * wi + s * wr;
+        c = nc; s = ns;
+      }
+    }
+  }
+}
+
+/* DFT via FFT over signed frequencies −N/2+1..N/2 (the ±N/2 Nyquist bins
+   alias to each other, so only one is kept), sorted by amplitude,
+   largest first. */
+function dftCoeffs(samples) {
+  const N = samples.length;
+  const re = new Array(N), im = new Array(N);
+  for (let n = 0; n < N; n++) { re[n] = samples[n].x; im[n] = samples[n].y; }
+  fft(re, im);
+  const out = [];
+  for (let b = 0; b < N; b++) {
+    if (b === N / 2) continue;
+    const freq = b < N / 2 ? b : b - N;
+    const r = re[b] / N, q = im[b] / N;
+    out.push({ freq, re: r, im: q, amp: Math.hypot(r, q), phase: Math.atan2(q, r) });
+  }
+  out.sort((p, q) => q.amp - p.amp);
+  return out;
+}
+
+/* Exact RMS residual of keeping the first k coefficients (Parseval). */
+function residualRMS(all, k) {
+  let r = 0;
+  for (let i = k; i < all.length; i++) r += all[i].amp * all[i].amp;
+  return Math.sqrt(Math.max(0, r));
+}
+
+/* Tip of the epicycle chain at loop position t in [0, 1). */
+function epiTip(t) {
+  let x = 0, y = 0;
+  for (const c of S.coefs) {
+    const ang = TAU * c.freq * t + c.phase;
+    x += c.amp * Math.cos(ang); y += c.amp * Math.sin(ang);
+  }
+  return { x, y };
+}
+function say(html) { badge.innerHTML = html; }
+
+/* Persistent trail on the right pane, grown one tip-step per frame so the
+   retracing is visible next to the drawing. */
+function resetTrail() {
+  g.clearRect(0, 0, S.RW, S.RH);
+  S.prevTip = null;
+}
+/* Full reconstructed path, used only for reduced-motion (no animation). */
+function drawTrailFull() {
+  g.clearRect(0, 0, S.RW, S.RH);
+  if (!S.coefs.length) return;
+  g.strokeStyle = "#ece5d8"; g.lineWidth = 1;
+  g.beginPath();
+  for (let k = 0; k <= 400; k++) {
+    const p = epiTip(k / 400 * TRACE_END);
+    if (k === 0) g.moveTo(p.x, p.y); else g.lineTo(p.x, p.y);
+  }
+  g.stroke();
+}
+
+/* One animation frame: the circle chain plus the tip dot. */
+function drawEpicycles(t) {
+  a.clearRect(0, 0, S.RW, S.RH);
+  let x = 0, y = 0;
+  for (let i = 0; i < S.coefs.length; i++) {
+    const c = S.coefs[i];
+    if (S.showCircles) {
+      a.strokeStyle = i === 0 ? "rgba(236,229,216,.75)" : "rgba(236,229,216,.25)";
+      a.lineWidth = 1;
+      a.beginPath(); a.arc(x, y, Math.max(c.amp, 0.5), 0, TAU); a.stroke();
+    }
+    const ang = TAU * c.freq * t + c.phase;
+    const nx = x + c.amp * Math.cos(ang), ny = y + c.amp * Math.sin(ang);
+    if (S.showAxes) {
+      a.strokeStyle = "rgba(236,229,216,.35)"; a.lineWidth = 1;
+      a.beginPath(); a.moveTo(x, y); a.lineTo(nx, ny); a.stroke();
+    }
+    x = nx; y = ny;
+  }
+  a.fillStyle = "#ece5d8";
+  a.beginPath(); a.arc(x, y, 4.5, 0, TAU); a.fill();
+  return { x, y };
+}
+
+function epiStep(gen) {
+  if (gen !== S.gen || !S.playing) return;
+  S.animT += S.speed / (60 * LOOP_SECS * 2);
+  if (S.animT >= TRACE_END) {
+    /* Stop at the finish of the drawing: no return to the start. */
+    S.animT = TRACE_END;
+    const tip = drawEpicycles(TRACE_END);
+    if (S.showCurve && S.prevTip) {
+      g.strokeStyle = "#ece5d8"; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(S.prevTip.x, S.prevTip.y); g.lineTo(tip.x, tip.y); g.stroke();
+    }
+    S.prevTip = tip;
+    S.playing = false;
+    $("playBtn").textContent = "Replay";
+    return;
+  }
+  const tip = drawEpicycles(S.animT);
+  if (S.showCurve && S.prevTip) {
+    g.strokeStyle = "#ece5d8"; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(S.prevTip.x, S.prevTip.y); g.lineTo(tip.x, tip.y); g.stroke();
+  }
+  S.prevTip = tip;
+  requestAnimationFrame(() => epiStep(gen));
+}
+
+function computeAndShow(pts) {
+  const samples = resampleOpen(pts, SAMPLES);
+  if (!samples) return false;
+  const all = dftCoeffs(samples);
+  /* Auto circle count: keep the strongest circles until the RMS residual
+     (Parseval: sum of |c|^2 over the omitted coeffs) drops under errTarget. */
+  const cap = all.length;
+  let K;
+  if (S.countMode === "manual") {
+    K = Math.min(all.length, Math.max(1, Math.round(S.manualCount)));
+  } else {
+    let resid = 0;
+    for (const c of all) resid += c.amp * c.amp;
+    K = 0;
+    while (K < cap && Math.sqrt(Math.max(0, resid)) >= S.errTarget) {
+      resid -= all[K].amp * all[K].amp;
+      K++;
+    }
+  }
+  S.coefs = all.slice(0, Math.max(1, K));
+  S.samples = samples.slice(0, SAMPLES / 2 + 1); /* visible half only: no return leg */
+  resetTrail();
+  const err = residualRMS(all, S.coefs.length);
+  S.lastErr = err;
+  S.animT = 0; S.prevTip = null;
+  S.gen++;
+  if (reduced) {
+    S.playing = false;
+    drawTrailFull();
+    drawEpicycles(0);
+    $("playBtn").disabled = true;
+  } else {
+    S.playing = true;
+    $("playBtn").disabled = false;
+    $("playBtn").textContent = "Pause";
+    const gen = S.gen;
+    requestAnimationFrame(() => epiStep(gen));
+  }
+  $("compareBtn").disabled = false;
+  say("reconstructed with <b>" + S.coefs.length + "</b> circles — mean tip error <b>" + err.toFixed(3) + "px</b>");
+  return true;
+}
+
+function startTrace() {
+  if (!strokes.length) {
+    say("draw a freehand stroke first — then the circles will trace it");
+    return;
+  }
+  if (S.mode === "compare") { replayTrace(); return; }
+  computeAndShow(strokes[strokes.length - 1]);
+}
+
+/* Final overlay: one screen, original vs reconstruction in different
+   colors so mismatches are visible. Both paths share one similarity
+   transform, so relative differences are preserved. */
+function compareTransform() {
+  let mnx = 1e9, mny = 1e9, mxx = -1e9, mxy = -1e9;
+  for (const p of S.samples) {
+    if (p.x < mnx) mnx = p.x; if (p.y < mny) mny = p.y;
+    if (p.x > mxx) mxx = p.x; if (p.y > mxy) mxy = p.y;
+  }
+  const s = Math.min(S.RW / Math.max(1, mxx - mnx), S.RH / Math.max(1, mxy - mny));
+  const ox = (S.RW - (mxx - mnx) * s) / 2 - mnx * s;
+  const oy = (S.RH - (mxy - mny) * s) / 2 - mny * s;
+  return { x: p => p.x * s + ox, y: p => p.y * s + oy };
+}
+function drawCompare() {
+  a.clearRect(0, 0, S.RW, S.RH);
+  g.clearRect(0, 0, S.RW, S.RH);
+  if (!S.samples || !S.coefs.length) return;
+  const T = compareTransform();
+  g.lineWidth = 1;
+  g.strokeStyle = "#ece5d8"; /* your stroke */
+  g.beginPath();
+  S.samples.forEach((p, i) => { if (i === 0) g.moveTo(T.x(p), T.y(p)); else g.lineTo(T.x(p), T.y(p)); });
+  g.stroke();
+  g.strokeStyle = "#e8a33d"; /* circles' reconstruction */
+  g.beginPath();
+  for (let k = 0; k <= 400; k++) {
+    const p = epiTip(k / 400 * TRACE_END);
+    if (k === 0) g.moveTo(T.x(p), T.y(p)); else g.lineTo(T.x(p), T.y(p));
+  }
+  g.stroke();
+}
+function enterCompare() {
+  if (!S.coefs.length) return;
+  S.mode = "compare";
+  S.playing = false; S.gen++;
+  $("leftPane").style.display = "none";
+  const gd = fitOne(guideC, g); S.RW = gd.w; S.RH = gd.h;
+  fitOne(animC, a);
+  drawCompare();
+  $("playBtn").disabled = false;
+  $("playBtn").textContent = "Replay";
+  $("compareBtn").textContent = "Back to trace";
+  say("<b>white</b> = your stroke, <b>gold</b> = circles — overlap shows where they vary (mean error <b>" +
+    S.lastErr.toFixed(3) + "px</b> with <b>" + S.coefs.length + "</b> circles)");
+}
+function replayTrace() {
+  S.mode = "split";
+  $("leftPane").style.display = "";
+  $("compareBtn").textContent = "Compare";
+  fit();
+  if (strokes.length) computeAndShow(strokes[strokes.length - 1]);
+}
+
+function togglePlay() {
+  if (S.mode === "compare") { replayTrace(); return; }
+  if (!S.coefs.length || reduced) return;
+  if (S.playing) {
+    S.playing = false;
+    S.gen++;
+    $("playBtn").textContent = S.animT >= TRACE_END ? "Replay" : "Play";
+  } else {
+    if (S.animT >= TRACE_END) { S.animT = 0; S.prevTip = null; resetTrail(); }
+    S.playing = true;
+    $("playBtn").textContent = "Pause";
+    const gen = ++S.gen;
+    requestAnimationFrame(() => epiStep(gen));
+  }
+}
+
+/* Freehand drawing on the top layer; every pen stroke is also captured as
+   points so the DFT machine can rebuild it with circles. */
+const strokes = [];
+let stroking = false, last = null, midPrev = null, cur = null;
 function evPos(e) {
   const r = drawC.getBoundingClientRect();
   return { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -245,6 +454,7 @@ drawC.addEventListener("pointerdown", e => {
   stroking = true;
   const p = evPos(e);
   last = p; midPrev = p;
+  cur = S.eraser ? null : [p];
   d.lineCap = "round"; d.lineJoin = "round";
   d.strokeStyle = S.eraser ? "rgba(0,0,0,1)" : S.color;
   d.globalCompositeOperation = S.eraser ? "destination-out" : "source-over";
@@ -254,87 +464,105 @@ drawC.addEventListener("pointerdown", e => {
 drawC.addEventListener("pointermove", e => {
   if (!stroking) return;
   const p = evPos(e);
+  if (cur) {
+    const q = cur[cur.length - 1];
+    if (Math.hypot(p.x - q.x, p.y - q.y) > 1.5) cur.push(p);
+  }
   const mx = (last.x + p.x) / 2, my = (last.y + p.y) / 2;
   d.beginPath(); d.moveTo(midPrev.x, midPrev.y);
   d.quadraticCurveTo(last.x, last.y, mx, my); d.stroke();
   last = p; midPrev = { x: mx, y: my };
 });
-function endStroke() { stroking = false; last = null; midPrev = null; }
+function endStroke() {
+  stroking = false; last = null; midPrev = null;
+  if (cur && cur.length >= 8) {
+    strokes.push(cur);
+    computeAndShow(cur);
+  }
+  cur = null;
+}
 drawC.addEventListener("pointerup", endStroke);
 drawC.addEventListener("pointercancel", endStroke);
 
 /* Toolbar wiring. */
-const COLORS = ["#f2ede1", "#e8a33d", "#7eb4c4", "#c96f4a", "#8fae6b", "#d16a8c"];
-const swBox = $("swatches");
-COLORS.forEach((c, i) => {
-  const b = document.createElement("button");
-  b.type = "button"; b.className = "sw" + (i === 0 ? " on" : "");
-  b.style.background = c; b.title = c;
-  b.setAttribute("aria-label", "pen color " + c);
-  b.addEventListener("click", () => {
-    S.color = c; S.eraser = false;
-    $("eraserBtn").textContent = "Eraser: off";
-    swBox.querySelectorAll(".sw").forEach(x => x.classList.remove("on"));
-    b.classList.add("on");
-  });
-  swBox.appendChild(b);
-});
-$("size").addEventListener("input", e => {
-  S.size = +e.target.value; $("sizeOut").textContent = e.target.value;
-});
 $("eraserBtn").addEventListener("click", () => {
   S.eraser = !S.eraser;
   $("eraserBtn").textContent = "Eraser: " + (S.eraser ? "on" : "off");
   $("eraserBtn").classList.toggle("on", S.eraser);
 });
-function readRatios() {
-  S.n1 = Math.min(8, Math.max(1, Math.round(+$("n1").value || 1)));
-  S.n2 = Math.min(8, Math.max(1, Math.round(+$("n2").value || 1)));
-  $("n1").value = S.n1; $("n2").value = S.n2;
-  drawGuideStatic();
-}
-$("n1").addEventListener("change", readRatios);
-$("n2").addEventListener("change", readRatios);
-const PRESETS = [[1, 1], [1, 2], [2, 3], [3, 4], [3, 5]];
-const preBox = $("presets");
-PRESETS.forEach(([a, b]) => {
-  const btn = document.createElement("button");
-  btn.type = "button"; btn.textContent = a + ":" + b;
-  btn.addEventListener("click", () => {
-    S.n1 = a; S.n2 = b; $("n1").value = a; $("n2").value = b;
-    drawGuideStatic();
-    say("guide n1:n2 = <b>" + a + ":" + b + "</b> — press Trace to watch it close");
-  });
-  preBox.appendChild(btn);
+$("speed").addEventListener("input", e => {
+  S.speed = Math.min(4, Math.max(0.25, +e.target.value || 1));
+  $("speedOut").textContent = S.speed + "×";
 });
-$("r2").addEventListener("input", e => {
-  S.r2frac = +e.target.value / Math.max(1, Math.min(S.W, S.H));
-  $("r2Out").textContent = e.target.value;
-  drawGuideStatic();
+function setCountMode(m) {
+  S.countMode = m;
+  $("autoBtn").classList.toggle("on", m === "auto");
+  $("manBtn").classList.toggle("on", m === "manual");
+  $("autoCtl").style.display = m === "auto" ? "" : "none";
+  $("manualCtl").style.display = m === "manual" ? "" : "none";
+  if (strokes.length && S.mode === "split") computeAndShow(strokes[strokes.length - 1]);
+}
+$("autoBtn").addEventListener("click", () => setCountMode("auto"));
+$("manBtn").addEventListener("click", () => setCountMode("manual"));
+$("errTarget").addEventListener("change", e => {
+  S.errTarget = Math.max(0.001, +e.target.value || 2);
+  e.target.value = S.errTarget;
+  if (strokes.length && S.mode === "split" && S.countMode === "auto") computeAndShow(strokes[strokes.length - 1]);
+});
+$("manualCount").addEventListener("change", e => {
+  S.manualCount = Math.min(4096, Math.max(1, Math.round(+e.target.value || 60)));
+  e.target.value = S.manualCount;
+  if (strokes.length && S.mode === "split" && S.countMode === "manual") computeAndShow(strokes[strokes.length - 1]);
 });
 function tog(id, key) {
   $(id).addEventListener("click", () => {
     S[key] = !S[key];
     $(id).classList.toggle("on", S[key]);
-    drawGuideStatic();
+    if (key === "showCurve" && !S.showCurve) resetTrail();
+    else if (key === "showCurve" && reduced) drawTrailFull();
   });
 }
 tog("gCircles", "showCircles");
 tog("gAxes", "showAxes");
 tog("gCurve", "showCurve");
 $("traceBtn").addEventListener("click", startTrace);
+$("playBtn").addEventListener("click", togglePlay);
+$("compareBtn").addEventListener("click", () => {
+  if (S.mode === "compare") replayTrace();
+  else enterCompare();
+});
 $("clearBtn").addEventListener("click", () => {
   d.save(); d.setTransform(1, 0, 0, 1, 0, 0);
   d.clearRect(0, 0, drawC.width, drawC.height); d.restore();
+  S.mode = "split";
+  $("leftPane").style.display = "";
+  $("compareBtn").textContent = "Compare";
+  $("compareBtn").disabled = true;
+  fit();
+  strokes.length = 0;
+  S.coefs = []; S.playing = false; S.gen++;
+  S.animT = 0;
+  a.clearRect(0, 0, S.RW, S.RH);
+  resetTrail();
+  $("playBtn").disabled = true;
+  $("playBtn").textContent = "Pause";
+  say("draw on the left — circles retrace it on the right");
 });
 $("saveBtn").addEventListener("click", () => {
   const out = document.createElement("canvas");
-  out.width = drawC.width; out.height = drawC.height;
   const o = out.getContext("2d");
-  o.fillStyle = "#0e0c0a"; o.fillRect(0, 0, out.width, out.height);
-  o.drawImage(guideC, 0, 0); o.drawImage(drawC, 0, 0);
   const link = document.createElement("a");
-  link.download = "hrvstdraw-n" + S.n1 + "-" + S.n2 + ".png";
+  if (S.mode === "compare") {
+    out.width = guideC.width; out.height = guideC.height;
+    o.fillStyle = "#0e0c0a"; o.fillRect(0, 0, out.width, out.height);
+    o.drawImage(guideC, 0, 0);
+    link.download = "hrvstdraw-compare-" + S.coefs.length + ".png";
+  } else {
+    out.width = drawC.width + guideC.width; out.height = Math.max(drawC.height, guideC.height);
+    o.fillStyle = "#0e0c0a"; o.fillRect(0, 0, out.width, out.height);
+    o.drawImage(drawC, 0, 0); o.drawImage(guideC, drawC.width, 0); o.drawImage(animC, drawC.width, 0);
+    link.download = "hrvstdraw-epicycles-" + S.coefs.length + ".png";
+  }
   link.href = out.toDataURL("image/png");
   link.click();
 });

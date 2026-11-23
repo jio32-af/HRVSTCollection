@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HRVSTSim — N-Body Gravitational Astrophysics Simulator</title>
+<meta name="description" content="Standalone N-body gravity simulator: exact O(N^2) and Barnes-Hut O(N log N) solvers, Velocity Verlet integration, live quadtree overlay, slingshot launches, classic presets, energy telemetry. Pure Canvas + vanilla JS.">
+<style>
+:root{
+  --bg:#05070f; --panel:#0b1020; --line:#1e2a4d;
+  --txt:#dbe4ff; --dim:#8fa0c8; --acc:#5ee6ff; --acc2:#ffb347;
+  --good:#51e08c; --warn:#ffc857; --bad:#ff6b6b;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--txt);
+  font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  overflow:hidden}
+#app{display:flex;height:100vh;width:100vw}
+#panel{width:324px;min-width:300px;max-width:360px;flex:0 0 auto;
+  background:linear-gradient(180deg,#0b1020,#070b16);
+  border-right:1px solid var(--line);overflow-y:auto;padding:14px 14px 24px}
+#panel h1{font-size:17px;margin:0 0 2px;letter-spacing:.5px}
+#panel h1 .sim{color:var(--acc)}
+#panel .sub{color:var(--dim);font-size:12px;margin:0 0 12px}
+#panel section{border:1px solid var(--line);border-radius:10px;
+  padding:10px 12px;margin-bottom:12px;background:rgba(255,255,255,.015)}
+#panel section h2{font-size:12px;text-transform:uppercase;letter-spacing:1.2px;
+  color:var(--dim);margin:0 0 8px}
+.row{display:flex;align-items:center;gap:8px;margin:7px 0;flex-wrap:wrap}
+.row label{flex:0 0 auto;min-width:86px;color:var(--dim);font-size:12.5px}
+.row output{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--acc);
+  font-size:12.5px;min-width:64px;text-align:right}
+input[type=range]{flex:1 1 auto;min-width:90px;accent-color:var(--acc)}
+.presets{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button{cursor:pointer;border:1px solid var(--line);border-radius:8px;
+  background:#131c38;color:var(--txt);padding:7px 9px;font-size:13px}
+button:hover{border-color:var(--acc);background:#182448}
+button:disabled{opacity:.45;cursor:default}
+button.primary{border-color:var(--acc);color:#04121a;background:var(--acc);font-weight:600}
+button.primary:hover{background:#8ef0ff}
+button.armed{border-color:var(--acc2);background:#3a2a10;color:var(--acc2)}
+.mode{display:flex;gap:8px}
+.mode button{flex:1}
+.seg{display:flex;gap:8px}
+.seg label{flex:1;display:flex;gap:6px;align-items:center;justify-content:center;
+  border:1px solid var(--line);border-radius:8px;padding:6px;font-size:12.5px;cursor:pointer}
+.seg input{accent-color:var(--acc)}
+.tele{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;
+  font-variant-numeric:tabular-nums;font-size:13px}
+.tele dt{color:var(--dim);margin:0}
+.tele dd{margin:0;text-align:right;color:var(--txt)}
+#tDrift.ok{color:var(--good)} #tDrift.warn{color:var(--warn)} #tDrift.bad{color:var(--bad)}
+.tgl{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px;cursor:pointer}
+.tgl input{accent-color:var(--acc);width:15px;height:15px}
+.keys{margin:0;font-size:12.5px}
+.keys div{display:flex;gap:8px;align-items:baseline;margin:3px 0}
+.keys dt{flex:0 0 92px;color:var(--dim)}
+.keys dd{margin:0}
+.keys kbd{white-space:nowrap}
+.note{font-size:12px;color:var(--dim);margin:6px 0 0}
+kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;
+  padding:0 5px;font-size:11.5px;background:#101838;color:var(--txt)}
+#stage{position:relative;flex:1 1 auto;min-width:0;background:#02030a}
+#sim{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#badge{position:absolute;top:10px;left:12px;pointer-events:none;
+  background:rgba(5,8,18,.72);border:1px solid var(--line);border-radius:8px;
+  padding:5px 10px;font-size:12.5px;color:var(--dim)}
+#badge b{color:var(--txt)}
+#aimBox{position:absolute;pointer-events:none;display:none;
+  background:rgba(5,8,18,.85);border:1px solid var(--acc2);border-radius:8px;
+  padding:5px 9px;font-size:12.5px;color:var(--acc2);white-space:nowrap}
+#hint{position:absolute;left:12px;bottom:10px;right:12px;pointer-events:none;
+  font-size:12px;color:var(--dim);text-shadow:0 1px 2px #000}
+#hint b{color:var(--txt)}
+@media (max-width:760px){
+  #app{flex-direction:column}
+  #panel{width:100%;max-width:none;max-height:44vh;border-right:none;border-bottom:1px solid var(--line)}
+  #hint{display:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="panel">
+    <h1>HRVST<span class="sim">Sim</span></h1>
+    <p class="sub">N-body gravity lab &middot; Canvas + vanilla JS &middot; no libraries</p>
+
+    <section>
+      <h2>Presets</h2>
+      <div class="presets">
+        <button data-preset="figure8">Figure-8 3-body</button>
+        <button data-preset="binary">Binary stars</button>
+        <button data-preset="solar">Solar system</button>
+        <button data-preset="galaxies">Colliding galaxies</button>
+      </div>
+      <p class="note">Presets set G and dt to tuned values; you can change them after loading.</p>
+    </section>
+
+    <section>
+      <h2>Solver</h2>
+      <div class="seg" role="radiogroup" aria-label="Force solver">
+        <label><input type="radio" name="solver" value="exact"> Exact O(N&sup2;)</label>
+        <label><input type="radio" name="solver" value="bh" checked> Barnes&ndash;Hut</label>
+      </div>
+      <div class="row">
+        <label for="theta">&theta; (theta)</label>
+        <input id="theta" type="range" min="0" max="1.5" step="0.05" value="0.5">
+        <output id="thetaVal" for="theta">0.50</output>
+      </div>
+      <p class="note">&theta;=0 opens every cell (exact). Larger &theta; groups distant cells and runs faster. Disabled in Exact mode.</p>
+    </section>
+
+    <section>
+      <h2>Physics</h2>
+      <div class="row">
+        <label for="grav">G constant</label>
+        <input id="grav" type="range" min="1" max="400" step="0.5" value="60">
+        <output id="gravVal" for="grav">60</output>
+      </div>
+      <div class="row">
+        <label for="dt">Timestep dt</label>
+        <input id="dt" type="range" min="0.005" max="0.2" step="0.005" value="0.06">
+        <output id="dtVal" for="dt">0.060</output>
+      </div>
+      <div class="row">
+        <label for="sub">Steps / frame</label>
+        <input id="sub" type="range" min="1" max="5" step="1" value="2">
+        <output id="subVal" for="sub">2</output>
+      </div>
+      <p class="note">Velocity Verlet (symplectic) integrator. Softening &epsilon;=3&nbsp;px avoids singularities.</p>
+    </section>
+
+    <section>
+      <h2>Launch new body</h2>
+      <div class="seg" role="radiogroup" aria-label="New body type">
+        <label><input type="radio" name="newtype" value="planet" checked> Body <kbd>M</kbd></label>
+        <label><input type="radio" name="newtype" value="star"> Star <kbd>S</kbd></label>
+        <label><input type="radio" name="newtype" value="blackhole"> Black hole <kbd>B</kbd></label>
+      </div>
+      <div class="row">
+        <label for="nmass">Mass</label>
+        <input id="nmass" type="range" min="0" max="100" step="1" value="30">
+        <output id="nmassVal" for="nmass">14</output>
+      </div>
+      <div class="mode">
+        <button id="modeLaunch" class="armed">Slingshot mode</button>
+        <button id="modePan">Pan mode</button>
+      </div>
+      <p class="note">In Slingshot mode: press-drag-release on empty space. Pull back like a slingshot; the arrow shows the launch velocity. <kbd>Esc</kbd> cancels. Pan mode drags the view; wheel always zooms. Keys <kbd>M</kbd>/<kbd>S</kbd>/<kbd>B</kbd> switch body type; <kbd>L</kbd>/<kbd>V</kbd> switch mode.</p>
+    </section>
+
+    <section>
+      <h2>View &amp; collisions</h2>
+      <label class="tgl"><input id="tTrails" type="checkbox" checked> Orbit trails</label>
+      <label class="tgl"><input id="tTree" type="checkbox" checked> Quadtree overlay (live boxes)</label>
+      <label class="tgl"><input id="tMerge" type="checkbox" checked> Merge bodies on impact</label>
+    </section>
+
+    <section>
+      <h2>Controls</h2>
+      <div class="row">
+        <button id="btnPause" class="primary">Pause</button>
+        <button id="btnStep">Step</button>
+        <button id="btnView">Reset view</button>
+      </div>
+      <div class="row">
+        <button id="btnBaseline">Reset energy baseline</button>
+        <button id="btnClear">Clear all</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Keybinds</h2>
+      <dl class="keys">
+        <div><dt><kbd>Space</kbd>/<kbd>P</kbd></dt><dd>pause / resume</dd></div>
+        <div><dt><kbd>R</kbd></dt><dd>restart current preset</dd></div>
+        <div><dt><kbd>1</kbd>&ndash;<kbd>4</kbd></dt><dd>figure-8 / binary / solar / galaxies</dd></div>
+        <div><dt><kbd>M</kbd>/<kbd>S</kbd>/<kbd>B</kbd></dt><dd>launch body / star / black hole</dd></div>
+        <div><dt><kbd>L</kbd>/<kbd>V</kbd></dt><dd>slingshot mode / pan mode</dd></div>
+        <div><dt><kbd>E</kbd></dt><dd>toggle solver (exact / Barnes&ndash;Hut)</dd></div>
+        <div><dt><kbd>[</kbd> <kbd>]</kbd></dt><dd>theta down / up</dd></div>
+        <div><dt><kbd>T</kbd>/<kbd>Q</kbd>/<kbd>C</kbd></dt><dd>trails / quadtree overlay / merging</dd></div>
+        <div><dt><kbd>F</kbd></dt><dd>fit / reset view</dd></div>
+        <div><dt><kbd>Esc</kbd></dt><dd>cancel slingshot aim</dd></div>
+      </dl>
+    </section>
+
+    <section>
+      <h2>Live telemetry</h2>
+      <dl class="tele">
+        <dt>Kinetic E</dt><dd id="tKE">&mdash;</dd>
+        <dt>Potential E</dt><dd id="tPE">&mdash;</dd>
+        <dt>Total E</dt><dd id="tE">&mdash;</dd>
+        <dt>Energy drift</dt><dd id="tDrift">&mdash;</dd>
+        <dt>Bodies</dt><dd id="tBodies">0</dd>
+        <dt>Tree nodes</dt><dd id="tNodes">0</dd>
+        <dt>FPS / steps&middot;s</dt><dd id="tFps">&mdash;</dd>
+        <dt>Solver</dt><dd id="tSolver">barnes-hut</dd>
+      </dl>
+      <p class="note">Drift compares total energy against the baseline set when a preset loads (or when you reset it).</p>
+    </section>
+  </aside>
+  <main id="stage">
+    <canvas id="sim"></canvas>
+    <div id="badge"><b id="badgeName">Solar system</b> &middot; <span id="badgeInfo"></span></div>
+    <div id="aimBox"></div>
+    <div id="hint"><b>Drag</b> slingshot &middot; <b>P</b> pause &middot; <b>R</b> restart &middot; <b>1&ndash;4</b> presets &middot; <b>M</b>/<b>S</b>/<b>B</b> body type &middot; full key list in the panel</div>
+  </main>
+</div>
+<script>
+'use strict';
+/* ============================================================
+   HRVSTSim physics core — DOM-free so it can be unit-tested.
+   Units: 1 length unit = 1 px at zoom 1. Mass/G/dt in these units.
+   Integrator: Velocity Verlet (symplectic, 2nd order).
+   Solvers: exact O(N^2) pairwise, or Barnes-Hut O(N log N).
+   Softening eps^2 = SOFT2 prevents singular close encounters.
+   ============================================================ */
+var SOFT2 = 9; // (3 px)^2 Plummer-equivalent softening
+
+function makeBody(x, y, vx, vy, m, type, color, name) {
+  return { x:x, y:y, vx:vx, vy:vy, ax:0, ay:0, m:m,
+           r: bodyRadius(m, type), type:type, color:color,
+           name:name || '', trail:[] };
+}
+
+function bodyRadius(m, type) {
+  var base = 2.0 * Math.cbrt(Math.max(m, 0.001));
+  if (type === 'blackhole' || type === 'star') {
+    return Math.min(26, Math.max(4, base));
+  }
+  return Math.min(14, Math.max(2.5, base));
+}
+
+/* ---- Exact O(N^2) pairwise accelerations. out[i] = {x, y}. ---- */
+function computeExact(bodies, G, out) {
+  var n = bodies.length, i, j;
+  for (i = 0; i < n; i++) { out[i].x = 0; out[i].y = 0; }
+  for (i = 0; i < n; i++) {
+    var bi = bodies[i];
+    for (j = i + 1; j < n; j++) {
+      var bj = bodies[j];
+      var dx = bj.x - bi.x, dy = bj.y - bi.y;
+      var d2 = dx * dx + dy * dy + SOFT2;
+      var inv = 1 / Math.sqrt(d2);
+      var s = G * inv * inv * inv; // G / (r^2+eps^2)^{3/2}
+      var six = s * bj.m * dx, siy = s * bj.m * dy;
+      var sjx = s * bi.m * dx, sjy = s * bi.m * dy;
+      out[i].x += six; out[i].y += siy;
+      out[j].x -= sjx; out[j].y -= sjy;
+    }
+  }
+}
+
+/* ---- Barnes-Hut quadtree ---- */
+var MIN_HALF = 0.5; // stop subdividing below 1 px cells
+
+function QuadNode(cx, cy, half) {
+  this.cx = cx; this.cy = cy; this.half = half;
+  this.mass = 0; this.comX = cx; this.comY = cy;
+  this.first = null;      // single body in a leaf
+  this.extra = null;      // overflow when a cell cannot subdivide
+  this.children = null;   // [NW, NE, SW, SE] once subdivided
+}
+QuadNode.prototype.contains = function (x, y) {
+  return x >= this.cx - this.half && x < this.cx + this.half &&
+         y >= this.cy - this.half && y < this.cy + this.half;
+};
+QuadNode.prototype.childFor = function (x, y) {
+  var west = x < this.cx ? 0 : 1;
+  var north = y < this.cy ? 0 : 2; // +y is "south" on screen; label only
+  return this.children[north + west];
+};
+QuadNode.prototype.subdivide = function () {
+  var h = this.half / 2, cx = this.cx, cy = this.cy;
+  this.children = [
+    new QuadNode(cx - h, cy - h, h), new QuadNode(cx + h, cy - h, h),
+    new QuadNode(cx - h, cy + h, h), new QuadNode(cx + h, cy + h, h)
+  ];
+};
+QuadNode.prototype.insert = function (b) {
+  var newM = this.mass + b.m;
+  if (this.mass === 0) { this.comX = b.x; this.comY = b.y; }
+  else {
+    this.comX = (this.comX * this.mass + b.x * b.m) / newM;
+    this.comY = (this.comY * this.mass + b.y * b.m) / newM;
+  }
+  this.mass = newM;
+  if (this.children) { this.childFor(b.x, b.y).insert(b); return; }
+  if (this.first === null) { this.first = b; return; }
+  if (this.first === b) { return; } // defensive: never double-insert
+  if (this.half <= MIN_HALF) {
+    if (!this.extra) { this.extra = [this.first]; this.first = null; }
+    this.extra.push(b);
+    return;
+  }
+  var old = this.first; this.first = null;
+  this.subdivide();
+  this.childFor(old.x, old.y).insert(old);
+  this.childFor(b.x, b.y).insert(b);
+};
+
+function buildTree(bodies) {
+  var n = bodies.length, i;
+  if (n === 0) { return { root: null, count: 0 }; }
+  var minX = bodies[0].x, maxX = bodies[0].x;
+  var minY = bodies[0].y, maxY = bodies[0].y;
+  for (i = 1; i < n; i++) {
+    var b = bodies[i];
+    if (b.x < minX) { minX = b.x; } if (b.x > maxX) { maxX = b.x; }
+    if (b.y < minY) { minY = b.y; } if (b.y > maxY) { maxY = b.y; }
+  }
+  var span = Math.max(maxX - minX, maxY - minY, 2);
+  var root = new QuadNode((minX + maxX) / 2, (minY + maxY) / 2, span * 0.55 + 1);
+  for (i = 0; i < n; i++) { root.insert(bodies[i]); }
+  var count = 0;
+  var stack = [root];
+  while (stack.length) {
+    var node = stack.pop();
+    count++;
+    if (node.children) {
+      for (var k = 0; k < 4; k++) { stack.push(node.children[k]); }
+    }
+  }
+  return { root: root, count: count };
+}
+
+function addDirect(b, o, G, out) {
+  if (!o || o === b) { return; }
+  var dx = o.x - b.x, dy = o.y - b.y;
+  var d2 = dx * dx + dy * dy + SOFT2;
+  var inv = 1 / Math.sqrt(d2);
+  var s = G * o.m * inv * inv * inv;
+  out.x += s * dx; out.y += s * dy;
+}
+
+/* Recursive force walk. Cells with s/d < theta act as one mass.
+   Any cell containing the target body is always opened, so a body
+   never feels its own mass through an approximation. */
+function nodeForce(node, b, G, theta, out) {
+  if (!node || node.mass === 0) { return; }
+  if (!node.children) {
+    addDirect(b, node.first, G, out);
+    if (node.extra) {
+      for (var i = 0; i < node.extra.length; i++) { addDirect(b, node.extra[i], G, out); }
+    }
+    return;
+  }
+  var dx = node.comX - b.x, dy = node.comY - b.y;
+  var d2 = dx * dx + dy * dy + SOFT2;
+  var d = Math.sqrt(d2);
+  var s = node.half * 2;
+  if (d > 0 && !node.contains(b.x, b.y) && (s / d) < theta) {
+    var f = G * node.mass / (d2 * d);
+    out.x += f * dx; out.y += f * dy;
+    return;
+  }
+  for (var k = 0; k < 4; k++) { nodeForce(node.children[k], b, G, theta, out); }
+}
+
+function computeBH(bodies, G, theta, out) {
+  var i, tree = buildTree(bodies);
+  var tmp = { x: 0, y: 0 };
+  for (i = 0; i < bodies.length; i++) {
+    tmp.x = 0; tmp.y = 0;
+    if (tree.root) { nodeForce(tree.root, bodies[i], G, theta, tmp); }
+    out[i].x = tmp.x; out[i].y = tmp.y;
+  }
+  return tree;
+}
+
+function computeAccelerations(bodies, G, method, theta, out) {
+  if (method === 'exact') { computeExact(bodies, G, out); return null; }
+  return computeBH(bodies, G, theta, out);
+}
+
+/* ---- Velocity Verlet: x += v dt + a dt^2/2, then v += (a_old+a_new) dt/2.
+   Requires b.ax/b.ay to hold valid accelerations on entry. fk must be an
+   array of {x,y} scratch objects with length >= bodies.length. ---- */
+function velocityVerletStep(bodies, dt, G, method, theta, fk) {
+  var i, b;
+  for (i = 0; i < bodies.length; i++) {
+    b = bodies[i];
+    b.x += b.vx * dt + 0.5 * b.ax * dt * dt;
+    b.y += b.vy * dt + 0.5 * b.ay * dt * dt;
+  }
+  var tree = computeAccelerations(bodies, G, method, theta, fk);
+  for (i = 0; i < bodies.length; i++) {
+    b = bodies[i];
+    b.vx += 0.5 * (b.ax + fk[i].x) * dt;
+    b.vy += 0.5 * (b.ay + fk[i].y) * dt;
+    b.ax = fk[i].x; b.ay = fk[i].y;
+  }
+  return tree;
+}
+
+/* Copy current accelerations into b.ax/b.ay (after edits, merges, G change). */
+function refreshAccelerations(bodies, G, method, theta, fk) {
+  var tree = computeAccelerations(bodies, G, method, theta, fk);
+  for (var i = 0; i < bodies.length; i++) {
+    bodies[i].ax = fk[i].x; bodies[i].ay = fk[i].y;
+  }
+  return tree;
+}
+
+function totalEnergy(bodies, G) {
+  var ke = 0, pe = 0, i, j;
+  for (i = 0; i < bodies.length; i++) {
+    var b = bodies[i];
+    ke += 0.5 * b.m * (b.vx * b.vx + b.vy * b.vy);
+  }
+  for (i = 0; i < bodies.length; i++) {
+    for (j = i + 1; j < bodies.length; j++) {
+      var dx = bodies[j].x - bodies[i].x, dy = bodies[j].y - bodies[i].y;
+      pe -= G * bodies[i].m * bodies[j].m / Math.sqrt(dx * dx + dy * dy + SOFT2);
+    }
+  }
+  return { ke: ke, pe: pe, total: ke + pe };
+}
+
+/* Inelastic merging of overlapping bodies (momentum conserving).
+   Returns number of mergers. Heavier body survives; blackhole type wins. */
+function mergeOverlapping(bodies) {
+  var dead = new Array(bodies.length);
+  var mergers = 0, i, j;
+  for (i = 0; i < bodies.length; i++) { dead[i] = false; }
+  for (i = 0; i < bodies.length; i++) {
+    if (dead[i]) { continue; }
+    var a = bodies[i];
+    for (j = i + 1; j < bodies.length; j++) {
+      if (dead[j]) { continue; }
+      var c = bodies[j];
+      var dx = c.x - a.x, dy = c.y - a.y;
+      var rr = (a.r + c.r) * 0.7;
+      if (dx * dx + dy * dy < rr * rr) {
+        // merge c into a (swap so the heavier survives in slot i)
+        if (c.m > a.m) { bodies[i] = c; bodies[j] = a; a = bodies[i]; c = bodies[j]; }
+        var M = a.m + c.m;
+        a.x = (a.x * a.m + c.x * c.m) / M;
+        a.y = (a.y * a.m + c.y * c.m) / M;
+        a.vx = (a.vx * a.m + c.vx * c.m) / M;
+        a.vy = (a.vy * a.m + c.vy * c.m) / M;
+        a.m = M;
+        if (c.type === 'blackhole') { a.type = 'blackhole'; }
+        else if (a.type !== 'blackhole' && c.type === 'star') { a.type = 'star'; }
+        a.r = bodyRadius(a.m, a.type);
+        a.trail = [];
+        dead[j] = true;
+        mergers++;
+      }
+    }
+  }
+  if (mergers > 0) {
+    var kept = [];
+    for (i = 0; i < bodies.length; i++) { if (!dead[i]) { kept.push(bodies[i]); } }
+    bodies.length = 0;
+    for (i = 0; i < kept.length; i++) { bodies.push(kept[i]); }
+  }
+  return mergers;
+}
+
+/* ============================================================
+   Presets. Each returns { bodies, G, dt, extent, name } where
+   extent = half-size of the region of interest (for fitView).
+   Orbital speeds use v = sqrt(G*M/r); figure-8 uses C. Moore's
+   periodic solution scaled from dimensionless (G=1, m=1) units.
+   ============================================================ */
+function mulberry32(seed) {
+  var a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    var t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function circVel(G, M, r) { return Math.sqrt(G * M / r); }
+
+var PRESETS = {
+  figure8: function () {
+    // Dimensionless figure-8 (Moore 1993): positions x1=(-0.97000436,
+    // 0.24308753), x3=-x1, x2=0; v1=v2=(0.466203685, 0.43236573),
+    // v3=-2*v1, G=1, m=1, period ~6.3259. Scaled: x_sim = L*x_dim,
+    // v_sim = v_dim*sqrt(G_sim*m_sim/L) with L=120, m=300, G=28.5.
+    var L = 120, m = 300, G = 28.5;
+    var vs = Math.sqrt(G * m / L);
+    var b = [
+      makeBody(-0.97000436 * L, 0.24308753 * L,
+               0.4662036850 * vs, 0.4323657300 * vs, m, 'planet', '#5ee6ff', 'A'),
+      makeBody(0.97000436 * L, -0.24308753 * L,
+               0.4662036850 * vs, 0.4323657300 * vs, m, 'planet', '#ffb347', 'B'),
+      makeBody(0, 0,
+               -0.9324073700 * vs, -0.8647314600 * vs, m, 'planet', '#c792ff', 'C')
+    ];
+    return { bodies: b, G: G, dt: 0.05, extent: 190, name: 'Figure-8 three-body' };
+  },
+  binary: function () {
+    var G = 60, m = 1500, d = 260;
+    var v = Math.sqrt(G * m / (2 * d)); // equal-mass circular binary
+    var b = [
+      makeBody(-d / 2, 0, 0, -v, m, 'star', '#ffd76a', 'Alpha'),
+      makeBody(d / 2, 0, 0, v, m, 'star', '#ff9d5c', 'Beta'),
+      makeBody(330, 0, 0, circVel(G, 2 * m, 330), 8, 'planet', '#5ee6ff', 'P1'),
+      makeBody(-430, 0, 0, -circVel(G, 2 * m, 430), 12, 'planet', '#7dff9b', 'P2')
+    ];
+    return { bodies: b, G: G, dt: 0.06, extent: 500, name: 'Binary star system' };
+  },
+  solar: function () {
+    var G = 60, M = 2500;
+    var b = [makeBody(0, 0, 0, 0, M, 'star', '#ffd76a', 'Sol')];
+    var planets = [
+      [90, 6, '#e8c07a'], [150, 9, '#e08a5a'],
+      [210, 12, '#5ee6ff'], [280, 8, '#ff6b6b'], [360, 20, '#c792ff']
+    ];
+    for (var i = 0; i < planets.length; i++) {
+      var r = planets[i][0];
+      b.push(makeBody(r, 0, 0, circVel(G, M, r), planets[i][1], 'planet', planets[i][2], 'P' + (i + 1)));
+    }
+    return { bodies: b, G: G, dt: 0.06, extent: 430, name: 'Solar system' };
+  },
+  galaxies: function () {
+    var G = 60, M = 3200, rnd = mulberry32(20261123);
+    var b = [];
+    var cores = [
+      { x: -260, y: -40, vx: 7, vy: 2, spin: 1,
+        palette: ['#5ee6ff', '#7db4ff', '#a9e6ff', '#dbe4ff'] },
+      { x: 260, y: 40, vx: -7, vy: -2, spin: -1,
+        palette: ['#ffb347', '#ff8a5c', '#ffd76a', '#ff6b6b'] }
+    ];
+    for (var g = 0; g < 2; g++) {
+      var c = cores[g];
+      b.push(makeBody(c.x, c.y, c.vx, c.vy, M, 'blackhole', '#ff8a5c', 'BH' + (g + 1)));
+      for (var i = 0; i < 70; i++) {
+        var r = 35 + rnd() * 115;
+        var a = rnd() * Math.PI * 2;
+        var sp = circVel(G, M, r) * (0.92 + rnd() * 0.16);
+        var px = c.x + Math.cos(a) * r, py = c.y + Math.sin(a) * r;
+        // tangential velocity around the local core (spin sets chirality)
+        var tx = -Math.sin(a) * c.spin, ty = Math.cos(a) * c.spin;
+        var m = 3 + rnd() * 6;
+        b.push(makeBody(px, py, c.vx + tx * sp, c.vy + ty * sp, m,
+                        'planet', c.palette[(rnd() * c.palette.length) | 0], ''));
+      }
+    }
+    return { bodies: b, G: G, dt: 0.05, extent: 560, name: 'Colliding galaxies' };
+  }
+};
+
+/* ============================================================
+   App state, camera, sprites (browser layer below this point
+   still has no DOM access; boot() at the bottom wires the DOM).
+   ============================================================ */
+var S = {
+  bodies: [],
+  G: 60, dt: 0.06, substeps: 2,
+  method: 'bh', theta: 0.5,
+  paused: false,
+  showTrails: true, showTree: true, mergeOn: true,
+  mode: 'launch', // 'launch' | 'pan'
+  newType: 'planet', newMass: 14,
+  E0: null, mergedTotal: 0,
+  lastTree: null, lastTreeCount: 0,
+  extent: 430, presetName: 'Solar system', presetKey: 'solar',
+  fk: [], // scratch acceleration buffers, sized to bodies.length
+  fps: 60, stepsPerSec: 0,
+  aim: null // {x0,y0 (world anchor), x1,y1 (world cursor)}
+};
+
+var CAM = { x: 0, y: 0, zoom: 1 };
+var SLING_K = 1.5;  // px of drag -> velocity units
+var MAX_LAUNCH_V = 300;
+var TRAIL_LEN = 140;
+var TYPE_DEFAULT_MASS = { planet: 14, star: 1500, blackhole: 2500 };
+var TYPE_LABEL = { planet: 'Body', star: 'Star', blackhole: 'Black hole' };
+var PRESET_ORDER = ['figure8', 'binary', 'solar', 'galaxies'];
+
+function ensureScratch() {
+  while (S.fk.length < S.bodies.length) { S.fk.push({ x: 0, y: 0 }); }
+}
+function screenToWorld(sx, sy, W, H) {
+  return { x: (sx - W / 2) / CAM.zoom + CAM.x,
+           y: (sy - H / 2) / CAM.zoom + CAM.y };
+}
+function worldToScreen(wx, wy, W, H) {
+  return { x: (wx - CAM.x) * CAM.zoom + W / 2,
+           y: (wy - CAM.y) * CAM.zoom + H / 2 };
+}
+function fitView(W, H) {
+  CAM.x = 0; CAM.y = 0;
+  CAM.zoom = Math.min(Math.max(Math.min(W, H) / (2.2 * S.extent), 0.08), 4);
+}
+function massFromSlider(t) { // t in [0,100] -> 5..6000 exponential
+  return Math.round(5 * Math.pow(1200, t / 100));
+}
+function sliderFromMass(m) {
+  return Math.round(100 * Math.log(m / 5) / Math.log(1200));
+}
+
+/* ---------------- rendering (needs a 2d context) ---------------- */
+var glowCache = {};
+function glowSprite(color) {
+  if (glowCache[color]) { return glowCache[color]; }
+  var c = document.createElement('canvas');
+  c.width = 64; c.height = 64;
+  var g = c.getContext('2d');
+  var grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, color);
+  grad.addColorStop(0.25, color);
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 64, 64);
+  glowCache[color] = c;
+  return c;
+}
+
+var starfield = [];
+function initStarfield() {
+  var rnd = mulberry32(1234567);
+  starfield = [];
+  for (var i = 0; i < 220; i++) {
+    starfield.push({ x: rnd(), y: rnd(), r: 0.4 + rnd() * 1.3, a: 0.15 + rnd() * 0.55 });
+  }
+}
+function drawBackground(ctx, W, H) {
+  ctx.fillStyle = '#02030a';
+  ctx.fillRect(0, 0, W, H);
+  // subtle parallax starfield in screen space
+  ctx.save();
+  for (var i = 0; i < starfield.length; i++) {
+    var s = starfield[i];
+    var px = ((s.x * 1.3 - (CAM.x * CAM.zoom * 0.00012 * (i % 5 + 1))) % 1) * W;
+    var py = ((s.y * 1.3 - (CAM.y * CAM.zoom * 0.00012 * (i % 5 + 1))) % 1) * H;
+    if (px < 0) { px += W; } if (py < 0) { py += H; }
+    ctx.globalAlpha = s.a;
+    ctx.fillStyle = '#cfe0ff';
+    ctx.fillRect(px, py, s.r, s.r);
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+function drawTree(ctx, root, W, H) {
+  if (!root) { return; }
+  ctx.save();
+  ctx.strokeStyle = 'rgba(94,230,255,0.20)';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = 'rgba(255,213,106,0.5)';
+  var stack = [root];
+  while (stack.length) {
+    var n = stack.pop();
+    var a = worldToScreen(n.cx - n.half, n.cy - n.half, W, H);
+    var b = worldToScreen(n.cx + n.half, n.cy + n.half, W, H);
+    var w = b.x - a.x, h = b.y - a.y;
+    if (w < 3 || h < 3) { continue; } // skip sub-pixel boxes
+    ctx.strokeRect(a.x, a.y, w, h);
+    if (n.children) {
+      var p = worldToScreen(n.comX, n.comY, W, H);
+      ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
+      for (var k = 0; k < 4; k++) { stack.push(n.children[k]); }
+    }
+  }
+  ctx.restore();
+}
+
+function drawBody(ctx, b, W, H) {
+  var p = worldToScreen(b.x, b.y, W, H);
+  var r = Math.max(1.5, b.r * CAM.zoom);
+  if (p.x < -60 || p.x > W + 60 || p.y < -60 || p.y > H + 60) { return; }
+  if (b.type === 'blackhole') {
+    var glowR = r * 3.2;
+    ctx.globalAlpha = 0.75;
+    ctx.drawImage(glowSprite('#ff8a3d'), p.x - glowR, p.y - glowR, glowR * 2, glowR * 2);
+    ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 6.2832);
+    ctx.fillStyle = '#000'; ctx.fill();
+    ctx.lineWidth = Math.max(1.5, r * 0.22);
+    ctx.strokeStyle = '#ffb347'; ctx.stroke();
+    ctx.beginPath(); ctx.arc(p.x, p.y, r * 1.45, 0, 6.2832);
+    ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,179,71,0.4)'; ctx.stroke();
+  } else if (b.type === 'star') {
+    var gr = r * 3;
+    ctx.globalAlpha = 0.85;
+    ctx.drawImage(glowSprite(b.color), p.x - gr, p.y - gr, gr * 2, gr * 2);
+    ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 6.2832);
+    ctx.fillStyle = b.color; ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x, p.y, r * 0.55, 0, 6.2832);
+    ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fill();
+  } else {
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 6.2832);
+    ctx.fillStyle = b.color; ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.stroke();
+  }
+}
+
+function drawTrails(ctx, W, H) {
+  ctx.save();
+  ctx.lineWidth = 1;
+  for (var i = 0; i < S.bodies.length; i++) {
+    var b = S.bodies[i], t = b.trail;
+    if (t.length < 2) { continue; }
+    ctx.globalAlpha = 0.45;
+    ctx.strokeStyle = b.type === 'blackhole' ? '#ff8a3d' : b.color;
+    ctx.beginPath();
+    var p0 = worldToScreen(t[0][0], t[0][1], W, H);
+    ctx.moveTo(p0.x, p0.y);
+    for (var k = 1; k < t.length; k++) {
+      var p = worldToScreen(t[k][0], t[k][1], W, H);
+      ctx.lineTo(p.x, p.y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+function drawAim(ctx, W, H) {
+  if (!S.aim) { return; }
+  var a = S.aim;
+  var p0 = worldToScreen(a.x0, a.y0, W, H);
+  var p1 = worldToScreen(a.x1, a.y1, W, H);
+  // launch velocity points from cursor back toward the anchor (slingshot)
+  var vx = (a.x0 - a.x1) * SLING_K, vy = (a.y0 - a.y1) * SLING_K;
+  var sp = Math.sqrt(vx * vx + vy * vy);
+  if (sp > MAX_LAUNCH_V) { vx *= MAX_LAUNCH_V / sp; vy *= MAX_LAUNCH_V / sp; }
+  // arrow in screen space: length proportional to launch speed
+  var ax = p0.x, ay = p0.y;
+  var bx = p0.x + (vx / SLING_K) * CAM.zoom, by = p0.y + (vy / SLING_K) * CAM.zoom;
+  ctx.save();
+  ctx.strokeStyle = '#ffb347'; ctx.fillStyle = '#ffb347'; ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p0.x, p0.y); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.arc(p0.x, p0.y, 4, 0, 6.2832); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+  var ang = Math.atan2(by - ay, bx - ax), hl = 10;
+  ctx.beginPath();
+  ctx.moveTo(bx, by);
+  ctx.lineTo(bx - hl * Math.cos(ang - 0.42), by - hl * Math.sin(ang - 0.42));
+  ctx.lineTo(bx - hl * Math.cos(ang + 0.42), by - hl * Math.sin(ang + 0.42));
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function render(ctx, W, H) {
+  drawBackground(ctx, W, H);
+  if (S.showTrails) { drawTrails(ctx, W, H); }
+  if (S.showTree && S.method === 'bh' && S.lastTree) { drawTree(ctx, S.lastTree, W, H); }
+  for (var i = 0; i < S.bodies.length; i++) { drawBody(ctx, S.bodies[i], W, H); }
+  drawAim(ctx, W, H);
+}
+
+/* ---------------- simulation control (DOM-free logic) ---------------- */
+function launchSpeed(ax0, ay0, ax1, ay1) {
+  var vx = (ax0 - ax1) * SLING_K, vy = (ay0 - ay1) * SLING_K;
+  var sp = Math.sqrt(vx * vx + vy * vy);
+  if (sp > MAX_LAUNCH_V) { vx *= MAX_LAUNCH_V / sp; vy *= MAX_LAUNCH_V / sp; }
+  return { vx: vx, vy: vy, speed: Math.min(sp, MAX_LAUNCH_V) };
+}
+
+function loadPreset(key) {
+  var p = PRESETS[key]();
+  S.bodies = p.bodies;
+  S.G = p.G; S.dt = p.dt;
+  S.extent = p.extent; S.presetName = p.name;
+  S.mergedTotal = 0;
+  S.aim = null;
+  ensureScratch();
+  S.lastTree = refreshAccelerations(S.bodies, S.G, S.method, S.theta, S.fk);
+  S.lastTreeCount = S.lastTree ? S.lastTree.count : 0;
+  var e = totalEnergy(S.bodies, S.G);
+  S.E0 = e.total;
+}
+
+function doSteps(n) {
+  ensureScratch();
+  for (var s = 0; s < n; s++) {
+    S.lastTree = velocityVerletStep(S.bodies, S.dt, S.G, S.method, S.theta, S.fk);
+    if (S.mergeOn && S.bodies.length > 1) {
+      var m = mergeOverlapping(S.bodies);
+      if (m > 0) {
+        S.mergedTotal += m;
+        ensureScratch();
+        S.lastTree = refreshAccelerations(S.bodies, S.G, S.method, S.theta, S.fk);
+      }
+    }
+  }
+  S.lastTreeCount = (S.method === 'bh' && S.lastTree) ? S.lastTree.count : 0;
+}
+
+function pushTrails() {
+  if (!S.showTrails) { return; }
+  for (var i = 0; i < S.bodies.length; i++) {
+    var t = S.bodies[i].trail;
+    t.push([S.bodies[i].x, S.bodies[i].y]);
+    if (t.length > TRAIL_LEN) { t.shift(); }
+  }
+}
+
+/* ---------------- boot: DOM wiring (browser only) ---------------- */
+function boot() {
+  var canvas = document.getElementById('sim');
+  var ctx = canvas.getContext('2d');
+  var badgeName = document.getElementById('badgeName');
+  var badgeInfo = document.getElementById('badgeInfo');
+  var aimBox = document.getElementById('aimBox');
+  var W = 0, H = 0, dpr = 1;
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var r = canvas.parentElement.getBoundingClientRect();
+    W = Math.max(50, r.width); H = Math.max(50, r.height);
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+
+  function $(id) { return document.getElementById(id); }
+  var ui = {
+    theta: $('theta'), thetaVal: $('thetaVal'),
+    grav: $('grav'), gravVal: $('gravVal'),
+    dt: $('dt'), dtVal: $('dtVal'),
+    sub: $('sub'), subVal: $('subVal'),
+    nmass: $('nmass'), nmassVal: $('nmassVal'),
+    tTrails: $('tTrails'), tTree: $('tTree'), tMerge: $('tMerge'),
+    btnPause: $('btnPause'), btnStep: $('btnStep'), btnView: $('btnView'),
+    btnBaseline: $('btnBaseline'), btnClear: $('btnClear'),
+    modeLaunch: $('modeLaunch'), modePan: $('modePan'),
+    tKE: $('tKE'), tPE: $('tPE'), tE: $('tE'), tDrift: $('tDrift'),
+    tBodies: $('tBodies'), tNodes: $('tNodes'), tFps: $('tFps'), tSolver: $('tSolver')
+  };
+
+  function syncPhysicsUI() {
+    ui.grav.value = S.G; ui.gravVal.textContent = fmt(S.G, 1);
+    ui.dt.value = S.dt; ui.dtVal.textContent = fmt(S.dt, 3);
+  }
+  function syncSolverUI() {
+    var radios = document.querySelectorAll('input[name=solver]');
+    for (var i = 0; i < radios.length; i++) {
+      radios[i].checked = (radios[i].value === S.method);
+    }
+    ui.theta.disabled = (S.method === 'exact');
+    ui.thetaVal.textContent = fmt(S.theta, 2);
+    ui.tSolver.textContent = S.method === 'exact' ? 'exact O(N^2)' : 'barnes-hut O(N log N)';
+  }
+  function syncNewMassUI() {
+    ui.nmass.value = sliderFromMass(S.newMass);
+    ui.nmassVal.textContent = String(S.newMass);
+  }
+
+  function togglePause() {
+    S.paused = !S.paused;
+    ui.btnPause.textContent = S.paused ? 'Resume' : 'Pause';
+  }
+  function loadPresetUI(key) {
+    if (!PRESETS.hasOwnProperty(key)) { return; }
+    loadPreset(key);
+    S.presetKey = key;
+    syncPhysicsUI();
+    fitView(W, H);
+    badgeName.textContent = S.presetName;
+    if (S.paused) { togglePause(); }
+  }
+  function restartSim() {
+    loadPresetUI(S.presetKey || 'solar');
+  }
+  function setSolver(m) {
+    if (S.method === m || (m !== 'exact' && m !== 'bh')) { return; }
+    S.method = m;
+    ensureScratch();
+    S.lastTree = refreshAccelerations(S.bodies, S.G, S.method, S.theta, S.fk);
+    S.lastTreeCount = S.lastTree ? S.lastTree.count : 0;
+    syncSolverUI();
+  }
+  function setNewType(t) {
+    if (!TYPE_DEFAULT_MASS.hasOwnProperty(t)) { return; }
+    S.newType = t;
+    S.newMass = TYPE_DEFAULT_MASS[t];
+    var all = document.querySelectorAll('input[name=newtype]');
+    for (var i = 0; i < all.length; i++) { all[i].checked = (all[i].value === t); }
+    syncNewMassUI();
+  }
+  function adjustTheta(d) {
+    S.theta = Math.min(1.5, Math.max(0, Math.round((S.theta + d) * 100) / 100));
+    ui.theta.value = S.theta;
+    ui.thetaVal.textContent = fmt(S.theta, 2);
+  }
+  function applyTrails() {
+    S.showTrails = ui.tTrails.checked;
+    if (!S.showTrails) {
+      for (var i = 0; i < S.bodies.length; i++) { S.bodies[i].trail = []; }
+    }
+  }
+  function applyTree() { S.showTree = ui.tTree.checked; }
+  function applyMerge() { S.mergeOn = ui.tMerge.checked; }
+
+  var presets = document.querySelectorAll('[data-preset]');
+  for (var pi = 0; pi < presets.length; pi++) {
+    (function (btn) {
+      btn.addEventListener('click', function () {
+        loadPresetUI(btn.getAttribute('data-preset'));
+      });
+    })(presets[pi]);
+  }
+
+  var solverRadios = document.querySelectorAll('input[name=solver]');
+  for (var si = 0; si < solverRadios.length; si++) {
+    solverRadios[si].addEventListener('change', function () {
+      setSolver(document.querySelector('input[name=solver]:checked').value);
+    });
+  }
+  ui.theta.addEventListener('input', function () {
+    S.theta = parseFloat(ui.theta.value);
+    ui.thetaVal.textContent = fmt(S.theta, 2);
+  });
+  ui.grav.addEventListener('input', function () {
+    S.G = parseFloat(ui.grav.value);
+    ui.gravVal.textContent = fmt(S.G, 1);
+    if (S.paused) {
+      ensureScratch();
+      refreshAccelerations(S.bodies, S.G, S.method, S.theta, S.fk);
+    }
+  });
+  ui.dt.addEventListener('input', function () {
+    S.dt = parseFloat(ui.dt.value);
+    ui.dtVal.textContent = fmt(S.dt, 3);
+  });
+  ui.sub.addEventListener('input', function () {
+    S.substeps = parseInt(ui.sub.value, 10);
+    ui.subVal.textContent = String(S.substeps);
+  });
+  ui.nmass.addEventListener('input', function () {
+    S.newMass = massFromSlider(parseInt(ui.nmass.value, 10));
+    ui.nmassVal.textContent = String(S.newMass);
+  });
+  var typeRadios = document.querySelectorAll('input[name=newtype]');
+  for (var ti = 0; ti < typeRadios.length; ti++) {
+    typeRadios[ti].addEventListener('change', function () {
+      setNewType(document.querySelector('input[name=newtype]:checked').value);
+    });
+  }
+  ui.tTrails.addEventListener('change', applyTrails);
+  ui.tTree.addEventListener('change', applyTree);
+  ui.tMerge.addEventListener('change', applyMerge);
+
+  ui.btnPause.addEventListener('click', togglePause);
+  ui.btnStep.addEventListener('click', function () {
+    if (!S.paused) { S.paused = true; ui.btnPause.textContent = 'Resume'; }
+    doSteps(S.substeps);
+    pushTrails();
+  });
+  ui.btnView.addEventListener('click', function () { fitView(W, H); });
+  ui.btnBaseline.addEventListener('click', function () {
+    S.E0 = totalEnergy(S.bodies, S.G).total;
+  });
+  ui.btnClear.addEventListener('click', function () {
+    S.bodies = []; S.aim = null; S.E0 = null; S.mergedTotal = 0;
+    S.lastTree = null; S.lastTreeCount = 0;
+    badgeName.textContent = 'Empty canvas';
+  });
+
+  function setMode(m) {
+    S.mode = m; S.aim = null; aimBox.style.display = 'none';
+    ui.modeLaunch.className = (m === 'launch') ? 'armed' : '';
+    ui.modePan.className = (m === 'pan') ? 'armed' : '';
+    canvas.style.cursor = (m === 'launch') ? 'crosshair' : 'grab';
+  }
+  ui.modeLaunch.addEventListener('click', function () { setMode('launch'); });
+  ui.modePan.addEventListener('click', function () { setMode('pan'); });
+
+  function evPos(e) {
+    var r = canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+  var panning = null;
+  canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  canvas.addEventListener('mousedown', function (e) {
+    if (e.button !== 0) { return; }
+    var p = evPos(e);
+    if (S.mode === 'pan') {
+      panning = { sx: p.x, sy: p.y, cx: CAM.x, cy: CAM.y };
+      canvas.style.cursor = 'grabbing';
+    } else {
+      var w = screenToWorld(p.x, p.y, W, H);
+      S.aim = { x0: w.x, y0: w.y, x1: w.x, y1: w.y };
+    }
+  });
+  canvas.addEventListener('mousemove', function (e) {
+    var p = evPos(e);
+    if (panning) {
+      CAM.x = panning.cx - (p.x - panning.sx) / CAM.zoom;
+      CAM.y = panning.cy - (p.y - panning.sy) / CAM.zoom;
+    } else if (S.aim) {
+      var w = screenToWorld(p.x, p.y, W, H);
+      S.aim.x1 = w.x; S.aim.y1 = w.y;
+      var v = launchSpeed(S.aim.x0, S.aim.y0, S.aim.x1, S.aim.y1);
+      aimBox.style.display = 'block';
+      aimBox.style.left = (p.x + 14) + 'px';
+      aimBox.style.top = (p.y + 14) + 'px';
+      aimBox.textContent = TYPE_LABEL[S.newType] +
+        ' m=' + S.newMass + '  |v|=' + fmt(v.speed, 1);
+    }
+  });
+  function endGesture(e) {
+    if (e && ('button' in e) && e.button !== 0) { return; }
+    if (panning) { panning = null; canvas.style.cursor = 'grab'; return; }
+    if (S.aim && e && e.target === canvas) {
+      var a = S.aim;
+      var v = launchSpeed(a.x0, a.y0, a.x1, a.y1);
+      var planetColors = ['#5ee6ff', '#7dff9b', '#ffd76a', '#ff9d5c', '#c792ff', '#ff6b6b'];
+      var starColors = ['#ffd76a', '#fff3c4', '#ff9d5c'];
+      var color = S.newType === 'blackhole' ? '#ff8a3d'
+        : (S.newType === 'star' ? starColors[S.bodies.length % starColors.length]
+        : planetColors[S.bodies.length % planetColors.length]);
+      S.bodies.push(makeBody(a.x0, a.y0, v.vx, v.vy, S.newMass, S.newType, color, ''));
+      ensureScratch();
+      S.lastTree = refreshAccelerations(S.bodies, S.G, S.method, S.theta, S.fk);
+      S.lastTreeCount = S.lastTree ? S.lastTree.count : 0;
+    }
+    S.aim = null;
+    aimBox.style.display = 'none';
+  }
+  window.addEventListener('mouseup', endGesture);
+  canvas.addEventListener('mouseleave', function () {
+    if (panning) { panning = null; canvas.style.cursor = 'grab'; }
+  });
+  var allButtons = document.querySelectorAll('button');
+  for (var bi = 0; bi < allButtons.length; bi++) {
+    allButtons[bi].addEventListener('click', function () {
+      if (document.activeElement && document.activeElement.blur) {
+        document.activeElement.blur();
+      }
+    });
+  }
+  window.addEventListener('keydown', function (e) {
+    if (e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); }
+    var tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+      if (e.key === ' ') { togglePause(); }
+      return; // let form controls keep their own keys
+    }
+    var k = e.key.toLowerCase();
+    if (k === 'escape') { S.aim = null; aimBox.style.display = 'none'; }
+    else if (k === ' ' || k === 'spacebar' || k === 'p') { togglePause(); }
+    else if (k === 'r') { restartSim(); }
+    else if (k >= '1' && k <= '4') { loadPresetUI(PRESET_ORDER[parseInt(k, 10) - 1]); }
+    else if (k === 'm') { setNewType('planet'); }
+    else if (k === 's') { setNewType('star'); }
+    else if (k === 'b') { setNewType('blackhole'); }
+    else if (k === 'l') { setMode('launch'); }
+    else if (k === 'v') { setMode('pan'); }
+    else if (k === 'e') { setSolver(S.method === 'exact' ? 'bh' : 'exact'); }
+    else if (k === '[' || k === '{') { adjustTheta(-0.05); }
+    else if (k === ']' || k === '}') { adjustTheta(0.05); }
+    else if (k === 't') { ui.tTrails.checked = !ui.tTrails.checked; applyTrails(); }
+    else if (k === 'q') { ui.tTree.checked = !ui.tTree.checked; applyTree(); }
+    else if (k === 'c') { ui.tMerge.checked = !ui.tMerge.checked; applyMerge(); }
+    else if (k === 'f') { fitView(W, H); }
+  });
+  canvas.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var p = evPos(e);
+    var before = screenToWorld(p.x, p.y, W, H);
+    var f = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+    CAM.zoom = Math.min(8, Math.max(0.05, CAM.zoom * f));
+    var after = screenToWorld(p.x, p.y, W, H);
+    CAM.x += before.x - after.x;
+    CAM.y += before.y - after.y;
+  }, { passive: false });
+
+  // telemetry
+  var lastTele = 0;
+  function fmtE(x) {
+    if (!isFinite(x)) { return '—'; }
+    var ax = Math.abs(x);
+    if (ax !== 0 && (ax >= 1e7 || ax < 0.01)) { return x.toExponential(3); }
+    return fmt(x, 1);
+  }
+  function telemetry(now) {
+    if (now - lastTele < 250) { return; }
+    lastTele = now;
+    var e = totalEnergy(S.bodies, S.G);
+    ui.tKE.textContent = fmtE(e.ke);
+    ui.tPE.textContent = fmtE(e.pe);
+    ui.tE.textContent = fmtE(e.total);
+    if (S.E0 === null || S.E0 === 0 || !isFinite(e.total)) {
+      ui.tDrift.textContent = '—';
+      ui.tDrift.className = '';
+    } else {
+      var drift = (e.total - S.E0) / Math.abs(S.E0) * 100;
+      ui.tDrift.textContent = (drift >= 0 ? '+' : '') + fmt(drift, 3) + '%';
+      var cls = Math.abs(drift) < 1 ? 'ok' : (Math.abs(drift) < 5 ? 'warn' : 'bad');
+      ui.tDrift.setAttribute('class', cls);
+    }
+    var merged = S.mergedTotal > 0 ? ' (−' + S.mergedTotal + ' merged)' : '';
+    ui.tBodies.textContent = S.bodies.length + merged;
+    ui.tNodes.textContent = S.method === 'bh' ? String(S.lastTreeCount) : '— (exact)';
+    ui.tFps.textContent = fmt(S.fps, 0) + ' / ' + fmt(S.stepsPerSec, 0);
+    badgeInfo.textContent = S.bodies.length + ' bodies · ' +
+      (S.paused ? 'paused' : (S.method === 'exact' ? 'exact' : 'BH θ=' + fmt(S.theta, 2)));
+  }
+
+  // main loop
+  var last = performance.now(), fpsEMA = 60;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    var dtReal = Math.max(1e-4, (now - last) / 1000);
+    last = now;
+    fpsEMA += ((1 / dtReal) - fpsEMA) * 0.05;
+    S.fps = fpsEMA;
+    S.stepsPerSec = fpsEMA * (S.paused ? 0 : S.substeps);
+    if (!S.paused && S.bodies.length) {
+      doSteps(S.substeps);
+      pushTrails();
+    }
+    render(ctx, W, H);
+    telemetry(now);
+  }
+
+  initStarfield();
+  resize();
+  loadPreset('solar');
+  syncPhysicsUI(); syncSolverUI(); syncNewMassUI();
+  setMode('launch');
+  fitView(W, H);
+  badgeName.textContent = S.presetName;
+  requestAnimationFrame(frame);
+}
+
+function fmt(x, d) {
+  var p = Math.pow(10, d);
+  return (Math.round(x * p) / p).toFixed(d);
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+}
+</script>
+</body>
+</html>

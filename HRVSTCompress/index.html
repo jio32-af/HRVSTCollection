@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HRVSTCompress — compression &amp; information-theory lab</title>
+<style>
+  :root{
+    --bg:#141210; --panel:#1e1a15; --panel2:#191510; --line:#33291d;
+    --ink:#ece5d8; --mut:#a89c88; --acc:#e8a33d; --teal:#7eb4c4; --ok:#8fae6b; --bad:#c96f4a;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    font-size:13.5px; line-height:1.45;
+  }
+  header{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    padding:12px 18px; border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:700; margin:0; letter-spacing:.01em}
+  header h1 span{color:var(--acc)}
+  header p{margin:0; font-size:12px; color:var(--mut)}
+  main{max-width:1180px; margin:0 auto; padding:16px 18px 48px; display:flex; flex-direction:column; gap:18px}
+  section{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px 16px}
+  section h2{font-size:13px; font-weight:700; margin:0 0 4px; color:var(--acc); letter-spacing:.04em}
+  section .sub{font-size:12px; color:var(--mut); margin:0 0 12px}
+  textarea{
+    width:100%; min-height:110px; resize:vertical; background:var(--panel2); color:var(--ink);
+    border:1px solid var(--line); border-radius:6px; padding:10px 12px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px;
+  }
+  textarea:focus{outline:none; border-color:var(--acc)}
+  .btnrow{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; align-items:center}
+  button{
+    background:var(--panel2); color:var(--ink); border:1px solid var(--line);
+    border-radius:6px; font-size:12.5px; padding:6px 12px; cursor:pointer;
+  }
+  button:hover{border-color:var(--acc)}
+  .count{font-size:12px; color:var(--mut)}
+  .count b{color:var(--ink)}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+  @media (max-width:900px){ .grid2{grid-template-columns:1fr} }
+  #tree{width:100%; height:420px; display:block; background:var(--panel2); border:1px solid var(--line); border-radius:6px; cursor:grab; touch-action:none}
+  .legend{font-size:11.5px; color:var(--mut); margin-top:6px}
+  table.codes{border-collapse:collapse; font-size:12px; font-family:ui-monospace,Menlo,Consolas,monospace}
+  table.codes td, table.codes th{border:1px solid var(--line); padding:3px 8px; text-align:left}
+  table.codes th{color:var(--mut); font-weight:600; background:var(--panel2)}
+  .swatch{display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:baseline}
+  .bitwrap{
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; line-height:2;
+    background:var(--panel2); border:1px solid var(--line); border-radius:6px;
+    padding:10px 12px; word-break:break-all; max-height:220px; overflow-y:auto;
+  }
+  .bit{padding:1px 3px; border-radius:3px; background:#2a241b; margin-right:2px; white-space:nowrap}
+  .bit i{font-style:normal; opacity:.55; margin-right:3px}
+  .codes16{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; line-height:2;
+    background:var(--panel2); border:1px solid var(--line); border-radius:6px;
+    padding:10px 12px; word-break:break-all; max-height:220px; overflow-y:auto}
+  .code16{padding:1px 5px; border-radius:3px; background:#223038; margin-right:3px; white-space:nowrap; color:var(--teal)}
+  .dictbox{max-height:240px; overflow-y:auto; border:1px solid var(--line); border-radius:6px}
+  .dash{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px}
+  .metric{background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:10px 12px}
+  .metric .k{font-size:11px; color:var(--mut); margin-bottom:2px}
+  .metric .v{font-size:17px; font-weight:700; font-variant-numeric:tabular-nums}
+  .metric .v small{font-size:11px; font-weight:400; color:var(--mut)}
+  .pass{color:var(--ok)} .fail{color:var(--bad)}
+  footer{max-width:1180px; margin:0 auto; padding:0 18px 32px; font-size:11.5px; color:var(--mut)}
+</style>
+</head>
+<body>
+<header>
+  <h1>HRVST<span>Compress</span></h1>
+  <p>lossless Huffman + LZW laboratory &middot; everything runs locally in this file</p>
+</header>
+<main>
+  <section id="inputSec">
+    <h2>Input</h2>
+    <p class="sub">Type or paste text, or load a sample dataset. All codecs run live on every keystroke (byte-level UTF-8).</p>
+    <textarea id="src" spellcheck="false"></textarea>
+    <div class="btnrow">
+      <button type="button" data-sample="prose">English prose</button>
+      <button type="button" data-sample="dna">DNA sequence</button>
+      <button type="button" data-sample="code">Repetitive code</button>
+      <span class="count" id="srcCount"></span>
+    </div>
+  </section>
+
+  <section id="huffSec">
+    <h2>Huffman coding</h2>
+    <p class="sub">Min-heap priority queue &rarr; binary prefix tree &rarr; variable-length codes. Leaves carry byte value, printable character and frequency; edges carry the 0/1 bit weights.</p>
+    <canvas id="tree"></canvas>
+    <p class="legend">Prefix property: no code is a prefix of another, so the bitstream decodes unambiguously left-to-right. Drag to pan &middot; scroll to zoom &middot; double-click to reset.</p>
+    <div class="grid2" style="margin-top:12px">
+      <div>
+        <h2 style="color:var(--teal)">Code table</h2>
+        <div class="dictbox"><table class="codes" id="codeTable"></table></div>
+      </div>
+      <div>
+        <h2 style="color:var(--teal)">Bitstream (per-symbol colors)</h2>
+        <div class="bitwrap" id="bitstream"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="lzwSec">
+    <h2>LZW dictionary coding</h2>
+    <p class="sub">Starts with all 256 single bytes, then learns longer phrases as it scans. Output is a stream of dictionary codes.</p>
+    <div class="grid2">
+      <div>
+        <h2 style="color:var(--teal)">Dictionary (learned entries)</h2>
+        <div class="dictbox"><table class="codes" id="lzwDict"></table></div>
+      </div>
+      <div>
+        <h2 style="color:var(--teal)">Code stream</h2>
+        <div class="codes16" id="lzwStream"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="dashSec">
+    <h2>Information-theory dashboard</h2>
+    <p class="sub">Live metrics. Shannon entropy is the theoretical floor: no uniquely-decodable code can beat it on average.</p>
+    <div class="dash">
+      <div class="metric"><div class="k">Raw size</div><div class="v" id="mRaw">–</div></div>
+      <div class="metric"><div class="k">Huffman size</div><div class="v" id="mHuff">–</div></div>
+      <div class="metric"><div class="k">Huffman ratio</div><div class="v" id="mRatioH">–</div></div>
+      <div class="metric"><div class="k">LZW size (12-bit codes)</div><div class="v" id="mLzw">–</div></div>
+      <div class="metric"><div class="k">LZW ratio</div><div class="v" id="mRatioL">–</div></div>
+      <div class="metric"><div class="k">Shannon limit</div><div class="v" id="mEntropy">–</div></div>
+      <div class="metric"><div class="k">Huffman avg length</div><div class="v" id="mAvgLen">–</div></div>
+      <div class="metric"><div class="k">Round-trip</div><div class="v" id="mRound">–</div></div>
+    </div>
+  </section>
+</main>
+<footer>
+  LZW bits assume fixed 12-bit framing per code (classic GIF-style packing); Huffman bits are the exact variable-length total.
+  Byte values shown as <span style="font-family:ui-monospace,monospace">‘A’·65</span> = printable character + UTF-8 byte value.
+</footer>
+<script>
+"use strict";
+/* ---------- sample datasets ---------- */
+const SAMPLES = {
+  prose: "It was the best of times, it was the worst of times. Information wants to be compressed: every repeated pattern is an opportunity to say more with less. A good model of the data is a good compressor, and the shortest description of the data is the best model of all.",
+  dna: "ACGTACGTACGTACGTTGCAACGTACGTACGTACGTTGCAACGTACGTACGTACGTTGCAACGTACGTACGTACGTTGCAACGTACGTACGTACGTTGCA",
+  code: "function add(a, b) { return a + b; }\nfunction add(a, b) { return a + b; }\nfunction add(a, b) { return a + b; }\nfunction add(a, b) { return a + b; }\nfunction add(a, b) { return a + b; }\nfunction add(a, b) { return a + b; }\nfunction add(a, b) { return a + b; }\nfunction add(a, b) { return a + b; }\nfunction add(a, b) { return a + b; }\nfunction add(a, b) { return a + b; }\nconst total = add(add(1, 2), add(3, 4));\nconst total = add(add(1, 2), add(3, 4));\nconst total = add(add(1, 2), add(3, 4));\nconst total = add(add(1, 2), add(3, 4));\nconsole.log(total);\nconsole.log(total);\nconsole.log(total);\nconsole.log(total);"
+};
+
+/* ---------- UTF-8 (hand-rolled, zero deps) ---------- */
+function utf8Encode(str) {
+  const out = [];
+  for (let i = 0; i < str.length; i++) {
+    let cp = str.charCodeAt(i);
+    if (cp >= 0xD800 && cp <= 0xDBFF && i + 1 < str.length) {
+      const lo = str.charCodeAt(i + 1);
+      if (lo >= 0xDC00 && lo <= 0xDFFF) { cp = 0x10000 + ((cp - 0xD800) << 10) + (lo - 0xDC00); i++; }
+    }
+    if (cp < 0x80) out.push(cp);
+    else if (cp < 0x800) out.push(0xC0 | (cp >> 6), 0x80 | (cp & 0x3F));
+    else if (cp < 0x10000) out.push(0xE0 | (cp >> 12), 0x80 | ((cp >> 6) & 0x3F), 0x80 | (cp & 0x3F));
+    else out.push(0xF0 | (cp >> 18), 0x80 | ((cp >> 12) & 0x3F), 0x80 | ((cp >> 6) & 0x3F), 0x80 | (cp & 0x3F));
+  }
+  return out;
+}
+function utf8Decode(bytes) {
+  let s = "";
+  for (let i = 0; i < bytes.length;) {
+    const b = bytes[i];
+    let cp, n;
+    if (b < 0x80) { cp = b; n = 1; }
+    else if ((b & 0xE0) === 0xC0) { cp = b & 0x1F; n = 2; }
+    else if ((b & 0xF0) === 0xE0) { cp = b & 0x0F; n = 3; }
+    else { cp = b & 0x07; n = 4; }
+    for (let k = 1; k < n; k++) cp = (cp << 6) | (bytes[i + k] & 0x3F);
+    i += n;
+    if (cp >= 0x10000) s += String.fromCharCode(0xD800 + ((cp - 0x10000) >> 10), 0xDC00 + ((cp - 0x10000) & 0x3FF));
+    else s += String.fromCharCode(cp);
+  }
+  return s;
+}
+
+/* ---------- min-heap priority queue (from scratch) ---------- */
+function MinHeap() { this.a = []; }
+MinHeap.prototype.size = function () { return this.a.length; };
+MinHeap.prototype.push = function (node) {
+  const a = this.a;
+  a.push(node);
+  let i = a.length - 1;
+  while (i > 0) {
+    const p = (i - 1) >> 1;
+    if (a[p].freq <= a[i].freq) break;
+    const t = a[p]; a[p] = a[i]; a[i] = t;
+    i = p;
+  }
+};
+MinHeap.prototype.pop = function () {
+  const a = this.a, top = a[0], last = a.pop();
+  if (a.length) {
+    a[0] = last;
+    let i = 0;
+    for (;;) {
+      const l = 2 * i + 1, r = l + 1;
+      let m = i;
+      if (l < a.length && a[l].freq < a[m].freq) m = l;
+      if (r < a.length && a[r].freq < a[m].freq) m = r;
+      if (m === i) break;
+      const t = a[m]; a[m] = a[i]; a[i] = t;
+      i = m;
+    }
+  }
+  return top;
+};
+
+/* ---------- Huffman: tree, codes, encode, decode ---------- */
+function buildFreq(bytes) {
+  const f = new Array(256).fill(0);
+  for (const b of bytes) f[b]++;
+  return f;
+}
+function buildHuffmanTree(freq) {
+  const heap = new MinHeap();
+  for (let b = 0; b < 256; b++) if (freq[b] > 0) heap.push({ sym: b, freq: freq[b], left: null, right: null });
+  if (heap.size() === 0) return null;
+  if (heap.size() === 1) {
+    const only = heap.pop();
+    return { sym: -1, freq: only.freq, left: only, right: null };
+  }
+  while (heap.size() > 1) {
+    const x = heap.pop(), y = heap.pop();
+    heap.push({ sym: -1, freq: x.freq + y.freq, left: x, right: y });
+  }
+  return heap.pop();
+}
+function buildCodes(node, prefix, out) {
+  if (!node) return;
+  if (node.sym >= 0) { out[node.sym] = prefix || "0"; return; }
+  if (node.left) buildCodes(node.left, prefix + "0", out);
+  if (node.right) buildCodes(node.right, prefix + "1", out);
+}
+function huffmanEncode(bytes, codes) {
+  let bits = "";
+  for (const b of bytes) bits += codes[b];
+  return bits;
+}
+function huffmanDecode(bits, root) {
+  const out = [];
+  let n = root;
+  for (const ch of bits) {
+    n = ch === "0" ? n.left : n.right;
+    if (n.sym >= 0) { out.push(n.sym); n = root; }
+  }
+  return out;
+}
+
+/* ---------- LZW dictionary codec (byte alphabet 0..255) ---------- */
+function lzwEncode(bytes) {
+  const dict = new Map();
+  for (let b = 0; b < 256; b++) dict.set(String.fromCharCode(b), b);
+  let next = 256, w = "", codes = [];
+  for (const b of bytes) {
+    const c = String.fromCharCode(b), wc = w + c;
+    if (dict.has(wc)) { w = wc; }
+    else { codes.push(dict.get(w)); dict.set(wc, next++); w = c; }
+  }
+  if (w) codes.push(dict.get(w));
+  return { codes, dictSize: next };
+}
+function lzwDecode(codes) {
+  const dict = [];
+  for (let b = 0; b < 256; b++) dict[b] = String.fromCharCode(b);
+  let next = 256;
+  let w = dict[codes[0]], out = [w];
+  for (let i = 1; i < codes.length; i++) {
+    const k = codes[i];
+    const entry = k < next ? dict[k] : w + w[0];
+    out.push(entry);
+    dict[next++] = w + entry[0];
+    w = entry;
+  }
+  const bytes = [];
+  for (const s of out) for (const ch of s) bytes.push(ch.charCodeAt(0));
+  return bytes;
+}
+
+/* ---------- Shannon entropy (bits per byte) ---------- */
+function shannonEntropy(freq, total) {
+  let h = 0;
+  for (let b = 0; b < 256; b++) {
+    if (!freq[b]) continue;
+    const p = freq[b] / total;
+    h -= p * (Math.log(p) / Math.log(2));
+  }
+  return h;
+}
+
+/* ---------- display helpers ---------- */
+function symLabel(b) {
+  const ch = String.fromCharCode(b);
+  const printable = b >= 32 && b <= 126;
+  const shown = b === 32 ? "space" : printable ? ch : "·";
+  return { shown, num: b };
+}
+function symColor(b) {
+  return "hsl(" + (b * 137 % 360) + ",45%,38%)";
+}
+function escHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/* ---------- Huffman tree canvas: pan + zoom ---------- */
+const treeC = document.getElementById("tree");
+const tx = treeC.getContext("2d");
+const view = { s: 1, x: 0, y: 0 };
+let treeWorld = null;
+let viewCss = { W: 800, H: 420 };
+const LEAF_GAP = 64, ROW_GAP = 64, PAD = 28;
+function treeDepth(n) {
+  if (!n) return 0;
+  if (n.sym >= 0) return 1;
+  return 1 + Math.max(treeDepth(n.left), treeDepth(n.right));
+}
+function countLeaves(n) {
+  if (!n) return 0;
+  if (n.sym >= 0) return 1;
+  return countLeaves(n.left) + countLeaves(n.right);
+}
+function layoutTree(root) {
+  if (!root) { treeWorld = null; return; }
+  const leaves = countLeaves(root), depth = treeDepth(root);
+  let cursor = 0;
+  (function place(n, d) {
+    if (n.sym >= 0) {
+      n._x = PAD + (cursor++) * LEAF_GAP + LEAF_GAP / 2;
+      n._y = PAD + d * ROW_GAP;
+      return n._x;
+    }
+    const lx = n.left ? place(n.left, d + 1) : 0;
+    const rx = n.right ? place(n.right, d + 1) : lx;
+    n._x = (lx + rx) / 2; n._y = PAD + d * ROW_GAP;
+    return n._x;
+  })(root, 0);
+  treeWorld = { root, w: PAD * 2 + leaves * LEAF_GAP, h: PAD * 2 + (depth - 1) * ROW_GAP + 30 };
+}
+function paintTree() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  tx.setTransform(1, 0, 0, 1, 0, 0);
+  tx.clearRect(0, 0, treeC.width, treeC.height);
+  if (!treeWorld) return;
+  tx.setTransform(dpr * view.s, 0, 0, dpr * view.s, dpr * view.x, dpr * view.y);
+  tx.font = "12px ui-monospace,Menlo,monospace";
+  tx.textAlign = "center";
+  const root = treeWorld.root;
+  (function edges(n) {
+    if (!n || n.sym >= 0) return;
+    tx.strokeStyle = "rgba(236,229,216,.45)"; tx.lineWidth = 1.5;
+    if (n.left) {
+      tx.beginPath(); tx.moveTo(n._x, n._y); tx.lineTo(n.left._x, n.left._y); tx.stroke();
+      tx.fillStyle = "#e8a33d";
+      tx.fillText("0", (n._x + n.left._x) / 2 - 8, (n._y + n.left._y) / 2);
+      edges(n.left);
+    }
+    if (n.right) {
+      tx.beginPath(); tx.moveTo(n._x, n._y); tx.lineTo(n.right._x, n.right._y); tx.stroke();
+      tx.fillStyle = "#7eb4c4";
+      tx.fillText("1", (n._x + n.right._x) / 2 + 8, (n._y + n.right._y) / 2);
+      edges(n.right);
+    }
+  })(root);
+  (function nodes(n) {
+    if (!n) return;
+    const leaf = n.sym >= 0;
+    tx.beginPath(); tx.arc(n._x, n._y, leaf ? 16 : 8, 0, Math.PI * 2);
+    tx.fillStyle = leaf ? symColor(n.sym) : "#33291d";
+    tx.fill();
+    tx.strokeStyle = "rgba(236,229,216,.7)"; tx.lineWidth = 1;
+    tx.stroke();
+    if (leaf) {
+      const L = symLabel(n.sym);
+      tx.fillStyle = "#ece5d8";
+      tx.fillText(L.shown, n._x, n._y);
+      tx.fillStyle = "#a89c88";
+      tx.fillText(String(n.freq), n._x, n._y + 14);
+    } else {
+      tx.fillStyle = "#a89c88";
+      tx.fillText(String(n.freq), n._x, n._y - 12);
+    }
+    if (n.left) nodes(n.left);
+    if (n.right) nodes(n.right);
+  })(root);
+}
+function sizeBacking() {
+  const r = treeC.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const W = Math.max(50, r.width), H = 420;
+  treeC.width = Math.round(W * dpr);
+  treeC.height = Math.round(H * dpr);
+  return { W, H };
+}
+function fitView() {
+  if (!treeWorld) return;
+  view.s = Math.min(2, (viewCss.W - 16) / treeWorld.w, (viewCss.H - 16) / treeWorld.h);
+  if (!(view.s > 0)) view.s = 1;
+  view.x = (viewCss.W - treeWorld.w * view.s) / 2;
+  view.y = (viewCss.H - treeWorld.h * view.s) / 2;
+}
+function zoomAt(cx, cy, f) {
+  const s2 = Math.min(5, Math.max(0.1, view.s * f));
+  const k = s2 / view.s;
+  view.x = cx - (cx - view.x) * k;
+  view.y = cy - (cy - view.y) * k;
+  view.s = s2;
+}
+/* drag-pan, wheel-zoom, pinch-zoom, double-click reset */
+(function () {
+  const pts = new Map();
+  let pinchD = 0;
+  treeC.addEventListener("pointerdown", e => {
+    treeC.setPointerCapture(e.pointerId);
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2) {
+      const p = [...pts.values()];
+      pinchD = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+    }
+    treeC.style.cursor = "grabbing";
+  });
+  treeC.addEventListener("pointermove", e => {
+    if (!pts.has(e.pointerId)) return;
+    const prev = pts.get(e.pointerId);
+    const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 1) {
+      view.x += dx; view.y += dy;
+    } else if (pts.size === 2) {
+      const p = [...pts.values()];
+      const d = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+      if (pinchD > 0) zoomAt((p[0].x + p[1].x) / 2, (p[0].y + p[1].y) / 2, d / pinchD);
+      pinchD = d;
+      view.x += dx / 2; view.y += dy / 2;
+    }
+    paintTree();
+  });
+  function endPt(e) {
+    pts.delete(e.pointerId);
+    pinchD = 0;
+    if (!pts.size) treeC.style.cursor = "grab";
+  }
+  treeC.addEventListener("pointerup", endPt);
+  treeC.addEventListener("pointercancel", endPt);
+  treeC.addEventListener("wheel", e => {
+    e.preventDefault();
+    const r = treeC.getBoundingClientRect();
+    zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
+    paintTree();
+  }, { passive: false });
+  treeC.addEventListener("dblclick", () => { fitView(); paintTree(); });
+})();
+window.addEventListener("resize", render);
+
+/* ---------- master render ---------- */
+const $ = id => document.getElementById(id);
+const MAXBITS = 4096, MAXDICT = 400, MAXCODES = 600;
+
+function render() {
+  const text = $("src").value;
+  const bytes = utf8Encode(text);
+  $("srcCount").innerHTML = "<b>" + text.length + "</b> chars · <b>" + bytes.length + "</b> bytes (UTF-8)";
+  if (!bytes.length) {
+    $("codeTable").innerHTML = "";
+    $("bitstream").textContent = "Type something to compress…";
+    $("lzwDict").innerHTML = "";
+    $("lzwStream").textContent = "…";
+    treeWorld = null;
+    paintTree();
+    ["mRaw", "mHuff", "mRatioH", "mLzw", "mRatioL", "mEntropy", "mAvgLen", "mRound"].forEach(id => $(id).textContent = "–");
+    return;
+  }
+  /* Huffman path */
+  const freq = buildFreq(bytes);
+  const root = buildHuffmanTree(freq);
+  const codes = {};
+  buildCodes(root, "", codes);
+  const bits = huffmanEncode(bytes, codes);
+  const backH = huffmanDecode(bits, root);
+  const okH = backH.length === bytes.length && backH.every((b, i) => b === bytes[i]);
+
+  /* LZW path */
+  const lz = lzwEncode(bytes);
+  const backL = lzwDecode(lz.codes);
+  const okL = backL.length === bytes.length && backL.every((b, i) => b === bytes[i]);
+
+  /* tree */
+  viewCss = sizeBacking();
+  layoutTree(root);
+  fitView();
+  paintTree();
+
+  /* code table */
+  const syms = Object.keys(codes).map(Number).sort((a, b) => codes[a].length - codes[b].length || a - b);
+  let th = "<tr><th>symbol</th><th>freq</th><th>code</th><th>len</th></tr>";
+  for (const b of syms) {
+    const L = symLabel(b);
+    th += "<tr><td><span class='swatch' style='background:" + symColor(b) + "'></span>‘" +
+      escHtml(L.shown) + "’·" + b + "</td><td>" + freq[b] + "</td><td>" + codes[b] + "</td><td>" + codes[b].length + "</td></tr>";
+  }
+  $("codeTable").innerHTML = th;
+
+  /* bitstream viewer */
+  let bh = "", shown = 0;
+  for (const b of bytes) {
+    if (shown >= MAXBITS) break;
+    bh += "<span class='bit' style='background:" + symColor(b) + "'><i>" + escHtml(symLabel(b).shown) + "</i>" + codes[b] + "</span>";
+    shown += codes[b].length;
+  }
+  if (bits.length > shown) bh += "<span style='color:var(--mut)'>… +" + (bits.length - shown) + " more bits</span>";
+  $("bitstream").innerHTML = bh;
+
+  /* LZW dictionary + stream */
+  const learned = [];
+  const rev = new Map();
+  for (let b = 0; b < 256; b++) rev.set(String.fromCharCode(b), b);
+  let nxt = 256, w = "";
+  const tmpBytes = bytes.slice();
+  for (const b of tmpBytes) {
+    const c = String.fromCharCode(b), wc = w + c;
+    if (rev.has(wc)) w = wc;
+    else { learned.push([nxt, w + c]); rev.set(wc, nxt++); w = c; }
+  }
+  let dh = "<tr><th>code</th><th>entry</th></tr>";
+  const showDict = learned.slice(0, MAXDICT);
+  for (const [code, entry] of showDict) {
+    dh += "<tr><td>" + code + "</td><td>" + escHtml(entry.length > 40 ? entry.slice(0, 40) + "…" : entry) + "</td></tr>";
+  }
+  if (learned.length > showDict.length) dh += "<tr><td>…</td><td>+" + (learned.length - showDict.length) + " more (“" + escHtml(learned[learned.length - 1][1].slice(0, 20)) + "…” …)</td></tr>";
+  $("lzwDict").innerHTML = dh;
+  let sh = "";
+  const showCodes = lz.codes.slice(0, MAXCODES);
+  for (const c of showCodes) sh += "<span class='code16'>" + c + "</span>";
+  if (lz.codes.length > showCodes.length) sh += "<span style='color:var(--mut)'>… +" + (lz.codes.length - showCodes.length) + " more codes</span>";
+  $("lzwStream").innerHTML = sh;
+
+  /* dashboard */
+  const rawBits = bytes.length * 8;
+  const huffBits = bits.length;
+  const lzwBits = lz.codes.length * 12;
+  const ent = shannonEntropy(freq, bytes.length);
+  let wsum = 0;
+  for (const b of syms) wsum += freq[b] * codes[b].length;
+  const avgLen = wsum / bytes.length;
+  $("mRaw").innerHTML = rawBits + " <small>bits</small>";
+  $("mHuff").innerHTML = huffBits + " <small>bits</small>";
+  $("mRatioH").innerHTML = (rawBits / huffBits).toFixed(2) + "×";
+  $("mLzw").innerHTML = lzwBits + " <small>bits</small>";
+  $("mRatioL").innerHTML = (rawBits / lzwBits).toFixed(2) + "×";
+  $("mEntropy").innerHTML = (ent * bytes.length).toFixed(0) + " <small>bits</small>";
+  $("mAvgLen").innerHTML = avgLen.toFixed(3) + " <small>bits/sym (H=" + ent.toFixed(3) + ")</small>";
+  $("mRound").innerHTML = "<span class='" + (okH ? "pass" : "fail") + "'>Huff " + (okH ? "✓" : "✗") + "</span> " +
+    "<span class='" + (okL ? "pass" : "fail") + "'>LZW " + (okL ? "✓" : "✗") + "</span>";
+}
+
+$("src").addEventListener("input", render);
+document.querySelectorAll("[data-sample]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    $("src").value = SAMPLES[btn.getAttribute("data-sample")];
+    render();
+  });
+});
+$("src").value = SAMPLES.prose;
+render();
+</script>
+</body>
+</html>

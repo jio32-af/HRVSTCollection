@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HRVST/WAVE — FDTD Field Lab</title>
+<meta name="description" content="Interactive 2D damped wave equation solver (FDTD) with pulses, emitters, walls, double-slit barriers and interference palettes.">
+<style>
+  :root{
+    --bg0:#07070c;
+    --bg1:#0c0c16;
+    --glass:rgba(15,17,28,.74);
+    --glass2:rgba(20,23,38,.66);
+    --hair:rgba(255,255,255,.09);
+    --hair2:rgba(255,255,255,.16);
+    --ink:#edeff7;
+    --dim:#a3a9c2;
+    --faint:#646b89;
+    --lime:#bef264;
+    --lime-dim:rgba(190,242,100,.14);
+    --vio:#a78bfa;
+    --amber:#fbbf24;
+    --teal:#5eead4;
+    --red:#fb7185;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    --r:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;color:var(--ink);font-family:var(--sans);font-size:14px;overflow:hidden;
+    background:
+      radial-gradient(900px 480px at 12% -8%, rgba(167,139,250,.14), transparent 60%),
+      radial-gradient(1000px 560px at 96% 108%, rgba(190,242,100,.07), transparent 60%),
+      radial-gradient(700px 500px at 60% 40%, rgba(94,234,212,.05), transparent 65%),
+      linear-gradient(180deg,var(--bg1),var(--bg0));
+  }
+  body::before{ /* slow aurora drift */
+    content:"";position:fixed;inset:-20%;pointer-events:none;z-index:0;opacity:.5;
+    background:
+      radial-gradient(520px 340px at 30% 20%, rgba(167,139,250,.10), transparent 70%),
+      radial-gradient(620px 380px at 75% 75%, rgba(190,242,100,.06), transparent 70%);
+    animation:drift 26s ease-in-out infinite alternate;
+  }
+  @keyframes drift{from{transform:translate3d(-2%,-1%,0)}to{transform:translate3d(2%,2%,0)}}
+  #app{position:relative;z-index:1;display:flex;flex-direction:column;height:100vh}
+  button{font-family:var(--sans);cursor:pointer}
+  :focus-visible{outline:2px solid var(--lime);outline-offset:2px;border-radius:8px}
+
+  /* ================= top bar ================= */
+  #topbar{
+    flex:0 0 auto;display:flex;align-items:center;gap:16px;padding:0 16px;height:62px;
+    background:rgba(10,11,20,.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    border-bottom:1px solid var(--hair);
+  }
+  .brand{display:flex;align-items:center;gap:11px;min-width:0}
+  .glyph{
+    width:36px;height:36px;border-radius:11px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(140deg,#1a2410,#0d1206);
+    border:1px solid rgba(190,242,100,.4);
+    box-shadow:0 0 18px rgba(190,242,100,.22), inset 0 0 12px rgba(190,242,100,.08);
+  }
+  .brand h1{margin:0;font-size:15px;font-weight:800;letter-spacing:.22em}
+  .brand h1 span{color:var(--lime)}
+  .brand p{margin:1px 0 0;font-size:10px;letter-spacing:.14em;color:var(--faint);text-transform:uppercase;white-space:nowrap}
+  #presets{display:flex;gap:8px;margin:0 auto}
+  .pill{
+    display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;
+    background:rgba(255,255,255,.04);border:1px solid var(--hair);color:var(--dim);font-size:12px;
+    transition:border-color .15s, color .15s, background .15s, transform .05s;white-space:nowrap;
+  }
+  .pill i{width:7px;height:7px;border-radius:50%;background:var(--vio);box-shadow:0 0 8px var(--vio);flex:0 0 auto}
+  .pill:nth-child(2) i{background:var(--lime);box-shadow:0 0 8px var(--lime)}
+  .pill:nth-child(3) i{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+  .pill:hover{border-color:var(--hair2);color:var(--ink);background:rgba(255,255,255,.07)}
+  .pill:active{transform:translateY(1px)}
+  #transport{display:flex;align-items:center;gap:8px;margin-left:auto}
+  .btn{
+    padding:9px 15px;border-radius:10px;font-size:12.5px;font-weight:600;
+    background:rgba(255,255,255,.05);border:1px solid var(--hair);color:var(--ink);
+    transition:border-color .15s, background .15s, transform .05s;
+  }
+  .btn:hover{border-color:var(--hair2);background:rgba(255,255,255,.09)}
+  .btn:active{transform:translateY(1px)}
+  .btn.go{background:var(--lime);border-color:var(--lime);color:#1a2407;box-shadow:0 0 16px rgba(190,242,100,.35)}
+  .btn.go:hover{background:#cdf783}
+  .btn.danger{color:#fecdd3;border-color:rgba(251,113,133,.35);background:rgba(251,113,133,.08)}
+  .btn.danger:hover{border-color:var(--red);background:rgba(251,113,133,.16)}
+  .res{display:flex;background:rgba(255,255,255,.045);border:1px solid var(--hair);border-radius:10px;padding:3px;gap:2px}
+  .res button{border:none;background:transparent;color:var(--dim);font-family:var(--mono);font-size:11px;padding:6px 9px;border-radius:7px}
+  .res button[aria-pressed="true"]{background:rgba(190,242,100,.16);color:var(--lime);box-shadow:inset 0 0 0 1px rgba(190,242,100,.4)}
+  /* ================= body layout ================= */
+  #mid{flex:1;min-height:0;display:flex;gap:12px;padding:12px 12px 10px}
+
+  /* ---- left tool rail ---- */
+  #rail{
+    flex:0 0 auto;width:66px;border-radius:var(--r);padding:10px 8px;
+    background:var(--glass);border:1px solid var(--hair);
+    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+  }
+  #rail .cap{font-size:9px;letter-spacing:.2em;color:var(--faint);margin:2px 0 4px;text-transform:uppercase}
+  .toolbtn{
+    width:50px;height:54px;border-radius:12px;border:1px solid transparent;background:transparent;
+    color:var(--dim);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    transition:all .15s;position:relative;
+  }
+  .toolbtn svg{width:22px;height:22px}
+  .toolbtn small{font-family:var(--mono);font-size:9px;color:var(--faint)}
+  .toolbtn:hover{color:var(--ink);background:rgba(255,255,255,.06)}
+  .toolbtn[aria-pressed="true"]{color:var(--lime);background:var(--lime-dim);box-shadow:inset 0 0 0 1px rgba(190,242,100,.45)}
+  .toolbtn[aria-pressed="true"] small{color:var(--lime)}
+  .toolbtn[aria-pressed="true"]::before{
+    content:"";position:absolute;left:-8px;top:12px;bottom:12px;width:3px;border-radius:2px;
+    background:var(--lime);box-shadow:0 0 10px var(--lime);
+  }
+  #rail .sep{width:34px;height:1px;background:var(--hair);margin:6px 0}
+  #railStamp{
+    width:50px;border-radius:12px;border:1px dashed rgba(167,139,250,.5);background:rgba(167,139,250,.08);
+    color:var(--vio);font-size:10px;font-weight:700;padding:9px 2px;letter-spacing:.04em;
+  }
+  #railStamp:hover{background:rgba(167,139,250,.18)}
+
+  /* ---- right inspector ---- */
+  #panel{
+    flex:0 0 auto;width:296px;overflow-y:auto;border-radius:var(--r);padding:16px 16px 20px;
+    background:var(--glass);border:1px solid var(--hair);
+    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  }
+  #panel::-webkit-scrollbar{width:8px}
+  #panel::-webkit-scrollbar-thumb{background:#2a2e45;border-radius:4px}
+  #panel section{margin-bottom:20px}
+  #panel section>h2{
+    margin:0 0 10px;font-size:10px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:var(--faint);
+    display:flex;align-items:center;gap:10px;
+  }
+  #panel section>h2::after{content:"";flex:1;height:1px;background:var(--hair)}
+  #panel section>h2 b{color:var(--lime);font-weight:700}
+  /* ---- custom sliders ---- */
+  .ctl{margin:10px 0}
+  .ctl .top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+  .ctl label{font-size:12px;color:var(--dim)}
+  .ctl output{font-family:var(--mono);font-size:11.5px;color:var(--lime);font-variant-numeric:tabular-nums}
+  input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;cursor:pointer}
+  input[type="range"]::-webkit-slider-runnable-track{
+    height:5px;border-radius:3px;
+    background:linear-gradient(90deg,var(--lime) var(--fill,50%),rgba(255,255,255,.12) var(--fill,50%));
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:15px;height:15px;border-radius:50%;margin-top:-5px;
+    background:#0b0d14;border:2px solid var(--lime);box-shadow:0 0 10px rgba(190,242,100,.5);
+  }
+  input[type="range"]::-moz-range-track{height:5px;border-radius:3px;background:rgba(255,255,255,.12)}
+  input[type="range"]::-moz-range-progress{height:5px;border-radius:3px;background:var(--lime)}
+  input[type="range"]::-moz-range-thumb{width:11px;height:11px;border-radius:50%;background:#0b0d14;border:2px solid var(--lime)}
+  .cfl{height:6px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:8px;overflow:hidden;position:relative}
+  .cfl i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--lime),var(--amber));transition:width .15s}
+  .cfl em{position:absolute;top:-2px;bottom:-2px;width:1px;background:rgba(255,255,255,.5);left:80%}
+  .note{font-size:11px;color:var(--faint);line-height:1.55}
+
+  /* ---- segmented + switches ---- */
+  .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:rgba(255,255,255,.04);
+    border:1px solid var(--hair);border-radius:12px;padding:4px}
+  .seg button{border:none;background:transparent;color:var(--dim);font-size:11.5px;font-weight:600;padding:8px 2px;border-radius:8px}
+  .seg button[aria-pressed="true"]{background:rgba(190,242,100,.15);color:var(--lime);box-shadow:inset 0 0 0 1px rgba(190,242,100,.4)}
+  .switchrow{display:flex;align-items:center;justify-content:space-between;margin:9px 0;font-size:12.5px;color:var(--dim)}
+  .switch{position:relative;width:38px;height:22px;flex:0 0 auto}
+  .switch input{opacity:0;width:100%;height:100%;margin:0;cursor:pointer;position:absolute;z-index:1}
+  .switch u{
+    position:absolute;inset:0;border-radius:999px;background:rgba(255,255,255,.1);
+    border:1px solid var(--hair);transition:all .18s;text-decoration:none;
+  }
+  .switch u::after{
+    content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;
+    background:#8b91a9;transition:all .18s;
+  }
+  .switch input:checked+u{background:rgba(190,242,100,.25);border-color:rgba(190,242,100,.6)}
+  .switch input:checked+u::after{left:18px;background:var(--lime);box-shadow:0 0 8px var(--lime)}
+  .ghostbtn{
+    width:100%;margin-top:7px;padding:9px;border-radius:10px;font-size:12px;font-weight:600;
+    background:rgba(255,255,255,.045);border:1px solid var(--hair);color:var(--dim);
+  }
+  .ghostbtn:hover{color:var(--ink);border-color:var(--hair2);background:rgba(255,255,255,.08)}
+
+  /* ---- emitter rows ---- */
+  #emitList{display:flex;flex-direction:column;gap:6px;max-height:148px;overflow-y:auto}
+  .emit{
+    display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:11px;
+    background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.25);border-radius:10px;padding:7px 9px;
+  }
+  .emit .dot{width:8px;height:8px;border-radius:50%;background:var(--amber);box-shadow:0 0 8px var(--amber);flex:0 0 auto;animation:blink 1.6s ease-in-out infinite}
+  @keyframes blink{50%{opacity:.35}}
+  .emit button{margin-left:auto;background:none;border:none;color:var(--faint);font-size:11px;padding:2px 4px}
+  .emit button:hover{color:var(--red)}
+  .empty{font-size:11.5px;color:var(--faint);font-style:italic;line-height:1.5}
+  /* ---- viewport stage ---- */
+  #stage{flex:1;min-width:0;min-height:0;display:flex;align-items:center;justify-content:center;position:relative;padding:4px}
+  #viewport{
+    position:relative;line-height:0;border-radius:18px;overflow:hidden;background:#000;
+    border:1px solid var(--hair2);
+    box-shadow:0 0 0 1px #000, 0 24px 80px rgba(0,0,0,.65), 0 0 120px rgba(167,139,250,.08);
+  }
+  canvas#sim{display:block;cursor:crosshair;touch-action:none;background:#000}
+  #vignette{position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 100% at 50% 45%, transparent 62%, rgba(0,0,0,.42) 100%)}
+  .tick{position:absolute;width:14px;height:14px;pointer-events:none;opacity:.9}
+  .tick.tl{top:8px;left:8px;border-top:2px solid var(--lime);border-left:2px solid var(--lime)}
+  .tick.tr{top:8px;right:8px;border-top:2px solid var(--lime);border-right:2px solid var(--lime)}
+  .tick.bl{bottom:8px;left:8px;border-bottom:2px solid var(--lime);border-left:2px solid var(--lime)}
+  .tick.br{bottom:8px;right:8px;border-bottom:2px solid var(--lime);border-right:2px solid var(--lime)}
+
+  /* ---- floating HUD ---- */
+  .chip{
+    position:absolute;line-height:1.45;pointer-events:none;user-select:none;
+    background:rgba(8,10,18,.78);border:1px solid var(--hair);border-radius:12px;
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    padding:9px 12px;font-family:var(--mono);
+  }
+  #chipFps{top:34px;left:12px;min-width:172px}
+  #chipEng{top:34px;left:196px;min-width:172px}
+  .chip .lab{font-size:9px;letter-spacing:.22em;color:var(--faint);font-family:var(--sans);font-weight:700}
+  .chip .big{font-size:19px;font-weight:600;color:#fff;font-variant-numeric:tabular-nums}
+  .chip .big small{font-size:10px;color:var(--dim)}
+  .chip .sub{font-size:10.5px;color:var(--dim);font-variant-numeric:tabular-nums}
+  .chip .sub b{color:var(--lime);font-weight:600}
+  .chip canvas{display:block;margin-top:5px;width:148px;height:26px}
+  #chipPos{bottom:12px;right:12px;font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
+  #chipPos b{color:var(--teal)}
+  #hintbar{
+    position:absolute;bottom:12px;left:50%;transform:translateX(-50%);pointer-events:none;user-select:none;
+    font-size:11.5px;color:var(--dim);white-space:nowrap;max-width:90%;overflow:hidden;text-overflow:ellipsis;
+    background:rgba(8,10,18,.78);border:1px solid var(--hair);border-radius:999px;padding:7px 16px;
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  }
+  #hintbar b{color:var(--lime);font-weight:700}
+  kbd{font-family:var(--mono);background:rgba(255,255,255,.08);border:1px solid var(--hair2);
+    border-bottom-width:2px;border-radius:5px;padding:0 5px;font-size:10px;color:#fff}
+
+  /* ---- footer ---- */
+  #statusbar{
+    flex:0 0 auto;display:flex;gap:18px;align-items:center;padding:7px 18px;
+    border-top:1px solid var(--hair);background:rgba(10,11,20,.7);
+    font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap;overflow-x:auto;
+  }
+  #statusbar .eq{color:var(--vio)}
+  #statusbar .right{margin-left:auto}
+
+  @media (max-width:1020px){
+    body{overflow:auto}
+    #app{height:auto;min-height:100vh}
+    #mid{flex-direction:column}
+    #rail{flex-direction:row;width:auto;order:-1;overflow-x:auto;padding:8px}
+    #rail .cap,#rail .sep{display:none}
+    .toolbtn{width:56px}
+    #panel{width:auto}
+    #presets{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand">
+      <div class="glyph" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#bef264" stroke-width="2" stroke-linecap="round">
+          <path d="M2 12 Q5 5 8 12 T14 12 T20 12 T26 12"/>
+        </svg>
+      </div>
+      <div>
+        <h1>HRVST<span>/WAVE</span></h1>
+        <p>FDTD field lab &middot; damped 2D wave eq</p>
+      </div>
+    </div>
+    <nav id="presets" aria-label="Preset experiments">
+      <button class="pill" id="presetSlit"><i></i>Double-Slit</button>
+      <button class="pill" id="presetGallery"><i></i>Whispering Ellipse</button>
+      <button class="pill" id="presetRipple"><i></i>Ripple Tank</button>
+    </nav>
+    <div id="transport">
+      <div class="res" role="group" aria-label="Grid resolution">
+        <button data-res="low" aria-pressed="false">192</button>
+        <button data-res="med" aria-pressed="true">288</button>
+        <button data-res="high" aria-pressed="false">384</button>
+      </div>
+      <button class="btn" id="btnClearWaves" title="Zero the wave field, keep walls (C)">Clear</button>
+      <button class="btn go" id="btnPause" title="Pause / resume (Space)">&#10074;&#10074; Pause</button>
+      <button class="btn danger" id="btnClearAll" title="Reset everything">Reset</button>
+    </div>
+  </header>
+  <div id="mid">
+    <nav id="rail" aria-label="Tools">
+      <div class="cap">Tools</div>
+      <button class="toolbtn" data-tool="pulse" aria-pressed="true" title="Drop pulses (1)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="6" stroke-dasharray="3 2.4"/><circle cx="12" cy="12" r="10" opacity=".45"/></svg>
+        <small>1 pulse</small>
+      </button>
+      <button class="toolbtn" data-tool="emitter" aria-pressed="false" title="Place sine source (2)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12 Q5 6 8 12 T14 12 T20 12"/><circle cx="20" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg>
+        <small>2 emit</small>
+      </button>
+      <button class="toolbtn" data-tool="wall" aria-pressed="false" title="Paint walls (3)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="5" rx="1"/><rect x="4" y="11" width="7" height="5" rx="1"/><rect x="13" y="11" width="7" height="5" rx="1"/><rect x="4" y="18" width="16" height="2.4" rx="1"/></svg>
+        <small>3 wall</small>
+      </button>
+      <button class="toolbtn" data-tool="slit" aria-pressed="false" title="Drag a double-slit barrier (4)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="10.2" y="2.5" width="3.6" height="6" rx="1.4"/><rect x="10.2" y="11" width="3.6" height="3.4" rx="1.4"/><rect x="10.2" y="17" width="3.6" height="4.5" rx="1.4"/></svg>
+        <small>4 slits</small>
+      </button>
+      <button class="toolbtn" data-tool="erase" aria-pressed="false" title="Eraser (5)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 15.5 13.5 8l4.5 4.5-6 6H8.5L6 15.5z"/><path d="M13 20.5h8" stroke-linecap="round"/></svg>
+        <small>5 erase</small>
+      </button>
+      <div class="sep"></div>
+      <button id="railStamp" title="Stamp a vertical double-slit barrier at the centre">+SLIT</button>
+    </nav>
+    <aside id="panel">
+      <section>
+        <h2><b>01</b> Source</h2>
+        <div class="ctl">
+          <div class="top"><label for="freq">Emitter frequency</label><output id="freqVal">2.2 Hz</output></div>
+          <input id="freq" type="range" min="0.2" max="8" step="0.1" value="2.2">
+        </div>
+        <div class="ctl">
+          <div class="top"><label for="amp">Amplitude</label><output id="ampVal">0.90</output></div>
+          <input id="amp" type="range" min="0.2" max="2" step="0.05" value="0.9">
+        </div>
+        <div class="ctl">
+          <div class="top"><label for="brush">Brush size</label><output id="brushVal">3</output></div>
+          <input id="brush" type="range" min="1" max="12" step="1" value="3">
+        </div>
+        <div class="switchrow"><span>Live sources (<span id="emitCount">0</span>)</span></div>
+        <div id="emitList"><div class="empty">No emitters — pick the emit tool and click the tank.</div></div>
+        <button class="ghostbtn" id="btnClearEmit">Remove all emitters</button>
+      </section>
+      <section>
+        <h2><b>02</b> Medium</h2>
+        <div class="ctl">
+          <div class="top"><label for="speed">Wave speed c</label><output id="speedVal">0.280</output></div>
+          <input id="speed" type="range" min="0.05" max="0.5" step="0.005" value="0.28">
+        </div>
+        <div class="ctl">
+          <div class="top"><label for="damp">Damping &gamma;</label><output id="dampVal">1.5e-3</output></div>
+          <input id="damp" type="range" min="0" max="20" step="0.1" value="1.5">
+        </div>
+        <div class="note">CFL <span id="mCFL" style="font-family:var(--mono);color:var(--lime)">0.40</span> — stable while C &le; 1/&radic;2. Marker = 80% of limit.</div>
+        <div class="cfl"><i id="cflFill" style="width:40%"></i><em></em></div>
+      </section>
+      <section>
+        <h2><b>03</b> View</h2>
+        <div class="seg" style="margin-bottom:10px">
+          <button data-pal="height" aria-pressed="true">Height</button>
+          <button data-pal="energy" aria-pressed="false">Energy</button>
+          <button data-pal="phase" aria-pressed="false">Phase</button>
+        </div>
+        <div class="switchrow"><span>Bloom glow</span><span class="switch"><input type="checkbox" id="tglGlow" checked><u></u></span></div>
+        <div class="switchrow"><span>Grid overlay</span><span class="switch"><input type="checkbox" id="tglGrid"><u></u></span></div>
+        <button class="ghostbtn" id="btnClearWalls">Clear all walls</button>
+      </section>
+      <section>
+        <h2><b>04</b> Field guide</h2>
+        <div class="note">
+          Walls pin the field to zero, so waves bounce. Slit gaps at 1&frasl;3 and 2&frasl;3 of
+          your drag turn one wall into an interferometer. Keys <kbd>1</kbd>–<kbd>5</kbd> swap
+          tools, <kbd>Space</kbd> pauses, <kbd>C</kbd> clears the field.
+        </div>
+      </section>
+    </aside>
+    <main id="stage">
+      <div id="viewport">
+        <canvas id="sim"></canvas>
+        <div id="vignette"></div>
+        <span class="tick tl"></span><span class="tick tr"></span>
+        <span class="tick bl"></span><span class="tick br"></span>
+        <div class="chip" id="chipFps">
+          <div class="lab">Render rate</div>
+          <div class="big"><span id="mFps">—</span> <small>fps</small></div>
+          <div class="sub"><b id="mSteps">0</b> steps &middot; <span id="mGrid">—</span></div>
+          <canvas id="sparkFps" width="296" height="52"></canvas>
+        </div>
+        <div class="chip" id="chipEng">
+          <div class="lab">Field energy</div>
+          <div class="big"><span id="mEnergy">—</span></div>
+          <div class="sub">peak <b id="mPeak">—</b> &middot; &lambda;&asymp;<span id="mLambda">—</span> cells</div>
+          <canvas id="sparkEng" width="296" height="52"></canvas>
+        </div>
+        <div class="chip" id="chipPos">cell <b id="mCursor">—</b> &middot; c=<span id="mC">—</span></div>
+        <div id="hintbar"><b id="toolTag">pulse</b> &nbsp;·&nbsp; <span id="toolHint"></span></div>
+      </div>
+    </main>
+  </div>
+  <footer id="statusbar">
+    <span class="eq">&part;&#178;u/&part;t&#178; = c&#178;&nabla;&#178;u &minus; &gamma;&thinsp;&part;u/&part;t</span>
+    <span>u&#8314;&#185; = [2u &minus; u&#8315;(1&minus;d) + C&#178;&Delta;u] / (1+d)</span>
+    <span class="right">vanilla JS &middot; zero deps &middot; 2 substeps / frame</span>
+  </footer>
+</div>
+<script>
+"use strict";
+/* FDTD damped wave solver — see README. Capped at C<=0.5, always stable. */
+const RESOLUTIONS = { low:[192,120], med:[288,180], high:[384,240] };
+let NX = 288, NY = 180;
+let u, up, un;
+let solid;
+let emitters = [];
+let emitId = 0;
+
+let running = true;
+let courant = 0.28;
+let dampC   = 0.0015;
+let freqGlob = 2.2;
+let ampGlob  = 0.9;
+let brush    = 3;
+let tool     = "pulse";
+let palette  = "height";
+let glowOn   = true;
+let gridOn   = false;
+let steps    = 0;
+const STEPS_PER_FRAME = 2;
+const SIM_RATE = 120;
+
+const canvas = document.getElementById("sim");
+const ctx = canvas.getContext("2d");
+const off2 = document.createElement("canvas");
+const octx2 = off2.getContext("2d");
+let img2 = null;
+
+const $ = (id) => document.getElementById(id);
+const el = {
+  fps:$("mFps"), steps:$("mSteps"), grid:$("mGrid"), energy:$("mEnergy"),
+  peak:$("mPeak"), c:$("mC"), cfl:$("mCFL"), cflFill:$("cflFill"), lambda:$("mLambda"),
+  cursor:$("mCursor"), toolTag:$("toolTag"), toolHint:$("toolHint"),
+  emitList:$("emitList"), emitCount:$("emitCount"),
+  brush:$("brush"), brushVal:$("brushVal"),
+  freq:$("freq"), freqVal:$("freqVal"), amp:$("amp"), ampVal:$("ampVal"),
+  speed:$("speed"), speedVal:$("speedVal"), damp:$("damp"), dampVal:$("dampVal"),
+  pause:$("btnPause"), sparkFps:$("sparkFps"), sparkEng:$("sparkEng"),
+};
+
+function allocGrid(nx, ny, keepWalls){
+  let oldSolid = null, ox = 0, oy = 0;
+  if (keepWalls && solid){ oldSolid = solid; ox = NX; oy = NY; }
+  NX = nx; NY = ny;
+  u  = new Float32Array(NX*NY);
+  up = new Float32Array(NX*NY);
+  un = new Float32Array(NX*NY);
+  solid = new Uint8Array(NX*NY);
+  if (oldSolid){
+    for (let y=0;y<NY;y++) for (let x=0;x<NX;x++){
+      const sx = Math.min(ox-1, (x*ox/NX)|0), sy = Math.min(oy-1, (y*oy/NY)|0);
+      solid[y*NX+x] = oldSolid[sy*ox+sx];
+    }
+    for (const e of emitters){ e.x = Math.max(1, Math.min(NX-2, Math.round(e.x*NX/ox))); e.y = Math.max(1, Math.min(NY-2, Math.round(e.y*NY/oy))); }
+  } else {
+    emitters = [];
+  }
+  canvas.width = NX*2; canvas.height = NY*2;
+  off2.width = NX*2; off2.height = NY*2;
+  img2 = octx2.createImageData(NX*2, NY*2);
+  fitCanvas();
+  refreshEmitterList();
+}
+function stepField(){
+  const C2 = courant*courant;
+  const d = dampC;
+  const inv = 1/(1+d);
+  const keep = (1-d);
+  for (let y=1;y<NY-1;y++){
+    const row = y*NX;
+    for (let x=1;x<NX-1;x++){
+      const i = row+x;
+      if (solid[i]){ un[i] = 0; continue; }
+      const c0 = u[i];
+      const lap = (solid[i-1]?0:u[i-1]) + (solid[i+1]?0:u[i+1])
+                + (solid[i-NX]?0:u[i-NX]) + (solid[i+NX]?0:u[i+NX]) - 4*c0;
+      un[i] = (2*c0 - up[i]*keep + C2*lap) * inv;
+    }
+  }
+  for (let x=0;x<NX;x++){ un[x]=0; un[(NY-1)*NX+x]=0; }
+  for (let y=0;y<NY;y++){ un[y*NX]=0; un[y*NX+NX-1]=0; }
+  for (let i=0;i<NX*NY;i++) if (solid[i]) un[i]=0;
+  const t = up; up = u; u = un; un = t;
+  for (const e of emitters){
+    e.phase += 2*Math.PI*e.freq/SIM_RATE;
+    u[e.y*NX+e.x] = e.amp*Math.sin(e.phase);
+  }
+  steps++;
+}
+
+function injectPulse(gx, gy, amp){
+  const R = Math.max(4, brush+3), sig = Math.max(2, R/2.2);
+  const x0 = Math.max(1, gx-R), x1 = Math.min(NX-2, gx+R);
+  const y0 = Math.max(1, gy-R), y1 = Math.min(NY-2, gy+R);
+  for (let y=y0;y<=y1;y++) for (let x=x0;x<=x1;x++){
+    const i = y*NX+x;
+    if (solid[i]) continue;
+    const dx=x-gx, dy=y-gy;
+    u[i] += amp*Math.exp(-(dx*dx+dy*dy)/(sig*sig));
+  }
+}
+function paintDisc(gx, gy, r, val){
+  for (let y=gy-r;y<=gy+r;y++){
+    if (y<1||y>NY-2) continue;
+    for (let x=gx-r;x<=gx+r;x++){
+      if (x<1||x>NX-2) continue;
+      const dx=x-gx, dy=y-gy;
+      if (dx*dx+dy*dy <= r*r) solid[y*NX+x] = val;
+    }
+  }
+}
+function paintWall(gx, gy, val){ paintDisc(gx, gy, Math.max(1, Math.round(brush/2)), val); }
+function stampSlitWall(x0, y0, x1, y1, thick, gapHalf){
+  const dx=x1-x0, dy=y1-y0;
+  const len = Math.hypot(dx, dy);
+  if (len < 4) return;
+  const n = Math.ceil(len);
+  for (let k=0;k<=n;k++){
+    const t = k/n, s = t*len;
+    if (Math.abs(s-len/3) < gapHalf || Math.abs(s-2*len/3) < gapHalf) continue;
+    paintDisc(Math.round(x0+dx*t), Math.round(y0+dy*t), Math.max(1, Math.round(thick/2)), 1);
+  }
+}
+function stampCentreSlits(){
+  const bx = Math.round(NX*0.5), thick = Math.max(2, Math.round(brush));
+  stampSlitWall(bx, 4, bx, NY-5, thick, Math.max(4, thick*2));
+}
+function addEmitter(gx, gy){
+  gx = Math.max(1, Math.min(NX-2, gx));
+  gy = Math.max(1, Math.min(NY-2, gy));
+  solid[gy*NX+gx] = 0;
+  emitters.push({ id:++emitId, x:gx, y:gy, freq:freqGlob, phase:0, amp:ampGlob });
+  refreshEmitterList();
+}
+function removeEmittersNear(gx, gy){
+  const r = Math.max(4, brush+3);
+  emitters = emitters.filter((e)=>{
+    const dx=e.x-gx, dy=e.y-gy;
+    return dx*dx+dy*dy > r*r;
+  });
+  refreshEmitterList();
+}
+function lerp3(a, b, t){ return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; }
+function makeLUT(stops){
+  const lut = new Float32Array(1024*3);
+  for (let i=0;i<1024;i++){
+    const v = i/1023*2-1;
+    let k = 0;
+    while (k < stops.length-2 && v > stops[k+1][0]) k++;
+    const p0 = stops[k][0], c0 = stops[k][1], p1 = stops[k+1][0], c1 = stops[k+1][1];
+    const t = Math.max(0, Math.min(1, (v-p0)/Math.max(1e-6, p1-p0)));
+    const c = lerp3(c0, c1, t);
+    lut[i*3]=c[0]; lut[i*3+1]=c[1]; lut[i*3+2]=c[2];
+  }
+  return lut;
+}
+const LUT = {
+  height: makeLUT([[-1,[96,64,224]],[-0.35,[26,18,86]],[0,[5,5,12]],[0.35,[74,124,32]],[1,[238,252,205]]]),
+  energy: makeLUT([[-1,[255,250,235]],[-0.5,[250,140,60]],[0,[2,3,8]],[0.5,[250,140,60]],[1,[255,250,235]]]),
+  phase:  makeLUT([[-1,[0,210,175]],[-0.4,[0,60,58]],[0,[4,5,9]],[0.4,[95,62,10]],[1,[255,200,90]]]),
+};
+let peakSmooth = 0.6, lastEnergy = 0, lastPeak = 0;
+
+function fitCanvas(){
+  const stage = document.getElementById("stage");
+  const availW = Math.max(220, stage.clientWidth - 12);
+  const availH = Math.max(220, stage.clientHeight - 12);
+  const s = Math.min(availW/NX, availH/NY);
+  canvas.style.width = Math.floor(NX*s)+"px";
+  canvas.style.height = Math.floor(NY*s)+"px";
+  const vp = document.getElementById("viewport");
+  vp.style.width = Math.floor(NX*s)+"px";
+  vp.style.height = Math.floor(NY*s)+"px";
+}
+let previewSeg = null;
+
+function render(){
+  const lut = LUT[palette] || LUT.height;
+  const norm = peakSmooth;
+  // field statistics on the coarse simulation grid
+  let peak = 0, eSum = 0;
+  for (let i=0;i<NX*NY;i++){
+    const v = u[i];
+    const a = v < 0 ? -v : v;
+    if (a > peak) peak = a;
+    eSum += v*v;
+  }
+  lastPeak = peak; lastEnergy = eSum/(NX*NY);
+  peakSmooth = Math.max(peak*1.08, peakSmooth*0.985, 0.35);
+  // supersampled display buffer: 2x bilinear upscale keeps waves silky
+  const data = img2.data;
+  const W2 = NX*2, H2 = NY*2;
+  const xMax = NX-2, yMax = NY-2;
+  let p = 0;
+  for (let y=0;y<H2;y++){
+    const gy = y*0.5;
+    let y0 = gy|0; const fy = gy-y0;
+    if (y0 > yMax) y0 = yMax;
+    const r0 = y0*NX, r1 = r0+NX;
+    for (let x=0;x<W2;x++){
+      const gx = x*0.5;
+      let x0 = gx|0; const fx = gx-x0;
+      if (x0 > xMax) x0 = xMax;
+      let r, g, b;
+      if (solid[r0+x0]){ r=13; g=15; b=24; }
+      else {
+        const v00=u[r0+x0], v10=u[r0+x0+1], v01=u[r1+x0], v11=u[r1+x0+1];
+        const v = (v00*(1-fx)+v10*fx)*(1-fy) + (v01*(1-fx)+v11*fx)*fy;
+        let t = v/norm;
+        t = t < -1 ? -1 : (t > 1 ? 1 : t);
+        const li = ((t*0.5+0.5)*1023)|0;
+        r = lut[li*3]; g = lut[li*3+1]; b = lut[li*3+2];
+      }
+      data[p]=r; data[p+1]=g; data[p+2]=b; data[p+3]=255; p+=4;
+    }
+  }
+  octx2.putImageData(img2, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, NX*2, NY*2);
+  if (glowOn){ // soft bloom underlay, then the sharp field on top
+    ctx.save();
+    ctx.filter = "blur(7px) saturate(1.4)";
+    ctx.globalAlpha = 0.5;
+    ctx.drawImage(off2, 0, 0);
+    ctx.restore();
+  }
+  ctx.drawImage(off2, 0, 0);
+  // vector overlays drawn in simulation coordinates (2 device px per cell)
+  ctx.setTransform(2, 0, 0, 2, 0, 0);
+  ctx.save();
+  if (gridOn){
+    ctx.strokeStyle = "rgba(255,255,255,.055)";
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    for (let x=16;x<NX;x+=16){ ctx.moveTo(x+.5, 0); ctx.lineTo(x+.5, NY); }
+    for (let y=16;y<NY;y+=16){ ctx.moveTo(0, y+.5); ctx.lineTo(NX, y+.5); }
+    ctx.stroke();
+  }
+  for (const e of emitters){
+    const halo = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, 10);
+    halo.addColorStop(0, "rgba(251,191,36,.5)");
+    halo.addColorStop(1, "rgba(251,191,36,0)");
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(e.x, e.y, 10, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = "rgba(251,191,36,.9)";
+    ctx.lineWidth = 0.7;
+    ctx.beginPath(); ctx.arc(e.x, e.y, 4.2, 0, Math.PI*2); ctx.stroke();
+    ctx.fillStyle = "#ffd98a";
+    ctx.beginPath(); ctx.arc(e.x, e.y, 1.4, 0, Math.PI*2); ctx.fill();
+  }
+  if (previewSeg){
+    ctx.strokeStyle = "rgba(190,242,100,.9)";
+    ctx.lineWidth = 0.8;
+    ctx.setLineDash([5,4]);
+    ctx.beginPath();
+    ctx.moveTo(previewSeg.x0, previewSeg.y0);
+    ctx.lineTo(previewSeg.x1, previewSeg.y1);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(190,242,100,.9)";
+    for (const f of [1/3, 2/3]){
+      ctx.beginPath();
+      ctx.arc(previewSeg.x0+(previewSeg.x1-previewSeg.x0)*f, previewSeg.y0+(previewSeg.y1-previewSeg.y0)*f, 3, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+function toGrid(ev){
+  const r = canvas.getBoundingClientRect();
+  const fx = (ev.clientX-r.left)/Math.max(1, r.width);
+  const fy = (ev.clientY-r.top)/Math.max(1, r.height);
+  return {
+    x: Math.max(0, Math.min(NX-1, Math.round(fx*NX-0.5))),
+    y: Math.max(0, Math.min(NY-1, Math.round(fy*NY-0.5))),
+  };
+}
+let dragging = false, dragSeg = null, lastPaint = null;
+
+canvas.addEventListener("pointerdown", (ev)=>{
+  canvas.setPointerCapture(ev.pointerId);
+  const g = toGrid(ev);
+  dragging = true; lastPaint = g;
+  if (tool === "pulse"){ injectPulse(g.x, g.y, 1.6*ampGlob); }
+  else if (tool === "emitter"){ addEmitter(g.x, g.y); dragging = false; }
+  else if (tool === "wall"){ paintWall(g.x, g.y, 1); }
+  else if (tool === "erase"){ paintWall(g.x, g.y, 0); removeEmittersNear(g.x, g.y); }
+  else if (tool === "slit"){ dragSeg = { x0:g.x, y0:g.y, x1:g.x, y1:g.y }; previewSeg = dragSeg; }
+});
+canvas.addEventListener("pointermove", (ev)=>{
+  const g = toGrid(ev);
+  el.cursor.textContent = "(" + g.x + "," + g.y + ")";
+  if (!dragging) return;
+  if (tool === "pulse"){
+    const dx=g.x-lastPaint.x, dy=g.y-lastPaint.y;
+    if (dx*dx+dy*dy >= 9){ injectPulse(g.x, g.y, 1.2*ampGlob); lastPaint = g; }
+  } else if (tool === "wall"){ paintWall(g.x, g.y, 1); lastPaint = g; }
+  else if (tool === "erase"){ paintWall(g.x, g.y, 0); removeEmittersNear(g.x, g.y); lastPaint = g; }
+  else if (tool === "slit" && dragSeg){ dragSeg.x1=g.x; dragSeg.y1=g.y; }
+});
+function endDrag(){
+  if (tool === "slit" && dragSeg){
+    const thick = Math.max(2, Math.round(brush));
+    stampSlitWall(dragSeg.x0, dragSeg.y0, dragSeg.x1, dragSeg.y1, thick, Math.max(4, thick*2));
+  }
+  dragging = false; dragSeg = null; previewSeg = null;
+}
+canvas.addEventListener("pointerup", endDrag);
+canvas.addEventListener("pointercancel", endDrag);
+canvas.addEventListener("pointerleave", ()=>{ el.cursor.textContent = "—"; });
+canvas.addEventListener("contextmenu", (ev)=> ev.preventDefault());
+
+const HINTS = {
+  pulse: "click to drop a wave packet · drag to sprinkle",
+  emitter: "click to place a sine source · eraser removes it",
+  wall: "drag to paint reflective barriers · waves bounce",
+  slit: "drag a line — a wall with gaps at 1/3 and 2/3",
+  erase: "drag to remove walls and nearby emitters",
+};
+function setTool(name){
+  tool = name;
+  document.querySelectorAll("[data-tool]").forEach((b)=>{
+    b.setAttribute("aria-pressed", b.dataset.tool === name ? "true" : "false");
+  });
+  el.toolTag.textContent = name;
+  el.toolHint.textContent = HINTS[name] || "";
+}
+function setPalette(name){
+  palette = name;
+  document.querySelectorAll("[data-pal]").forEach((b)=>{
+    b.setAttribute("aria-pressed", b.dataset.pal === name ? "true" : "false");
+  });
+}
+
+function clearWalls(){ solid.fill(0); }
+function clearWaves(){ u.fill(0); up.fill(0); un.fill(0); steps = 0; peakSmooth = 0.6; }
+function presetSlit(){
+  clearWalls(); clearWaves(); emitters = [];
+  const bx = Math.round(NX*0.5);
+  const midY = Math.round(NY/2);
+  const sep = Math.max(18, Math.round(NY*0.17));
+  const slitH = Math.max(5, Math.round(NY*0.035));
+  for (let y=2;y<NY-2;y++){
+    if (Math.abs(y-(midY-sep/2)) < slitH/2 || Math.abs(y-(midY+sep/2)) < slitH/2) continue;
+    for (let dx=-1;dx<=1;dx++) solid[y*NX+bx+dx] = 1;
+  }
+  emitters.push({ id:++emitId, x:Math.round(NX*0.18), y:midY, freq:2.2, phase:0, amp:0.9 });
+  setSlider(el.freq, el.freqVal, 2.2, " Hz"); freqGlob = 2.2;
+  setSlider(el.damp, el.dampVal, 0.8, "e-3", (v)=>dampC = v/1000);
+  for (const e of emitters){ e.freq = freqGlob; }
+  setPalette("phase");
+  refreshEmitterList();
+}
+function presetGallery(){
+  clearWalls(); clearWaves(); emitters = [];
+  const cx = NX/2, cy = NY/2;
+  const a = NX*0.36, b = NY*0.36;
+  for (let k=0;k<720;k++){
+    const th = k/720*Math.PI*2;
+    paintDisc(Math.round(cx+a*Math.cos(th)), Math.round(cy+b*Math.sin(th)), 2, 1);
+  }
+  const c = Math.sqrt(Math.max(1, a*a-b*b));
+  if (a >= b) injectPulse(Math.round(cx-c), Math.round(cy), 2.2);
+  else injectPulse(Math.round(cx), Math.round(cy-c), 2.2);
+  setSlider(el.damp, el.dampVal, 0.6, "e-3", (v)=>dampC = v/1000);
+  setPalette("height");
+  refreshEmitterList();
+}
+function presetRipple(){
+  clearWalls(); clearWaves(); emitters = [];
+  const y = Math.round(NY*0.32);
+  emitters.push({ id:++emitId, x:Math.round(NX*0.36), y, freq:2.0, phase:0, amp:0.9 });
+  emitters.push({ id:++emitId, x:Math.round(NX*0.64), y, freq:2.0, phase:0, amp:0.9 });
+  setSlider(el.freq, el.freqVal, 2.0, " Hz");
+  freqGlob = 2.0;
+  for (const e of emitters){ e.freq = freqGlob; }
+  setSlider(el.damp, el.dampVal, 0.5, "e-3", (v)=>dampC = v/1000);
+  setPalette("energy");
+  refreshEmitterList();
+}
+function refreshEmitterList(){
+  el.emitCount.textContent = String(emitters.length);
+  el.emitList.innerHTML = "";
+  if (!emitters.length){
+    const d = document.createElement("div");
+    d.className = "empty";
+    d.textContent = "No emitters — pick the emit tool and click the tank.";
+    el.emitList.appendChild(d);
+    return;
+  }
+  for (const e of emitters){
+    const row = document.createElement("div");
+    row.className = "emit";
+    const dot = document.createElement("span"); dot.className = "dot";
+    const lab = document.createElement("span");
+    lab.textContent = "#" + e.id + " (" + e.x + "," + e.y + ") " + e.freq.toFixed(1) + "Hz";
+    const btn = document.createElement("button");
+    btn.textContent = "✕";
+    btn.title = "Remove emitter";
+    btn.addEventListener("click", ()=>{
+      emitters = emitters.filter((o)=> o.id !== e.id);
+      refreshEmitterList();
+    });
+    row.append(dot, lab, btn);
+    el.emitList.appendChild(row);
+  }
+}
+
+function paintSlider(inp){
+  const pc = (inp.value-inp.min)/(inp.max-inp.min)*100;
+  inp.style.setProperty("--fill", pc.toFixed(1)+"%");
+}
+function setSlider(input, output, val, suffix, apply){
+  input.value = val;
+  let t;
+  if (suffix === " Hz" || suffix === "e-3") t = (+val).toFixed(1) + suffix;
+  else t = String(val);
+  output.textContent = t;
+  paintSlider(input);
+  if (apply) apply(+val);
+}
+
+document.querySelectorAll("[data-tool]").forEach((b)=>{
+  b.addEventListener("click", ()=> setTool(b.dataset.tool));
+});
+document.querySelectorAll("[data-pal]").forEach((b)=>{
+  b.addEventListener("click", ()=> setPalette(b.dataset.pal));
+});
+document.querySelectorAll("[data-res]").forEach((b)=>{
+  b.addEventListener("click", ()=>{
+    document.querySelectorAll("[data-res]").forEach((o)=> o.setAttribute("aria-pressed", "false"));
+    b.setAttribute("aria-pressed", "true");
+    const r = RESOLUTIONS[b.dataset.res];
+    allocGrid(r[0], r[1], true);
+  });
+});
+el.brush.addEventListener("input", ()=>{ brush = +el.brush.value; el.brushVal.textContent = el.brush.value; paintSlider(el.brush); });
+el.freq.addEventListener("input", ()=>{
+  freqGlob = +el.freq.value;
+  el.freqVal.textContent = freqGlob.toFixed(1) + " Hz";
+  paintSlider(el.freq);
+  for (const e of emitters) e.freq = freqGlob;
+});
+el.amp.addEventListener("input", ()=>{
+  ampGlob = +el.amp.value;
+  el.ampVal.textContent = ampGlob.toFixed(2);
+  paintSlider(el.amp);
+  for (const e of emitters) e.amp = ampGlob;
+});
+el.speed.addEventListener("input", ()=>{
+  courant = +el.speed.value;
+  el.speedVal.textContent = courant.toFixed(3);
+  paintSlider(el.speed);
+});
+el.damp.addEventListener("input", ()=>{
+  dampC = +el.damp.value/1000;
+  el.dampVal.textContent = (+el.damp.value).toFixed(1) + "e-3";
+  paintSlider(el.damp);
+});
+$("tglGlow").addEventListener("change", (ev)=>{ glowOn = ev.target.checked; });
+$("tglGrid").addEventListener("change", (ev)=>{ gridOn = ev.target.checked; });
+$("railStamp").addEventListener("click", stampCentreSlits);
+$("presetSlit").addEventListener("click", presetSlit);
+$("presetGallery").addEventListener("click", presetGallery);
+$("presetRipple").addEventListener("click", presetRipple);
+$("btnClearWalls").addEventListener("click", clearWalls);
+$("btnClearEmit").addEventListener("click", ()=>{ emitters = []; refreshEmitterList(); });
+$("btnClearWaves").addEventListener("click", clearWaves);
+$("btnClearAll").addEventListener("click", ()=>{ clearWalls(); clearWaves(); emitters = []; refreshEmitterList(); });
+function togglePause(){
+  running = !running;
+  el.pause.innerHTML = running ? "&#10074;&#10074; Pause" : "&#9654; Resume";
+}
+el.pause.addEventListener("click", togglePause);
+window.addEventListener("keydown", (ev)=>{
+  if (ev.target && (ev.target.tagName === "INPUT" || ev.target.tagName === "TEXTAREA")) return;
+  const k = ev.key;
+  if (k === " ") { ev.preventDefault(); togglePause(); }
+  else if (k === "1") setTool("pulse");
+  else if (k === "2") setTool("emitter");
+  else if (k === "3") setTool("wall");
+  else if (k === "4") setTool("slit");
+  else if (k === "5") setTool("erase");
+  else if (k === "c" || k === "C") clearWaves();
+});
+window.addEventListener("resize", fitCanvas);
+
+const fpsHist = [], engHist = [];
+function drawSpark(cv, arr, color){
+  const g = cv.getContext("2d");
+  const W = cv.width, H = cv.height;
+  g.clearRect(0, 0, W, H);
+  if (arr.length < 2) return;
+  let mn = Infinity, mx = -Infinity;
+  for (const v of arr){ if (v<mn) mn=v; if (v>mx) mx=v; }
+  if (mx-mn < 1e-9){ mx = mn+1e-9; }
+  g.beginPath();
+  for (let i=0;i<arr.length;i++){
+    const x = i/(arr.length-1)*W;
+    const y = H-4-((arr[i]-mn)/(mx-mn))*(H-10);
+    if (i===0) g.moveTo(x, y); else g.lineTo(x, y);
+  }
+  g.strokeStyle = color; g.lineWidth = 2; g.stroke();
+  g.lineTo(W, H); g.lineTo(0, H); g.closePath();
+  g.fillStyle = color.replace("1)", "0.12)");
+  g.fill();
+}
+let lastT = performance.now(), fpsE = 60, frame = 0;
+function updateHUD(){
+  el.fps.textContent = fpsE.toFixed(0);
+  el.steps.textContent = String(steps);
+  el.grid.textContent = NX + "×" + NY;
+  el.energy.textContent = lastEnergy.toExponential(2);
+  el.peak.textContent = lastPeak.toFixed(3);
+  el.c.textContent = courant.toFixed(3);
+  const cfl = courant*Math.SQRT2;
+  el.cfl.textContent = cfl.toFixed(2);
+  el.cflFill.style.width = Math.min(100, cfl/0.707*100).toFixed(1) + "%";
+  el.lambda.textContent = Math.round(courant*SIM_RATE/Math.max(0.2, freqGlob));
+  fpsHist.push(fpsE); if (fpsHist.length > 120) fpsHist.shift();
+  engHist.push(Math.log10(lastEnergy+1e-9)); if (engHist.length > 120) engHist.shift();
+  drawSpark(el.sparkFps, fpsHist, "rgba(190,242,100,1)");
+  drawSpark(el.sparkEng, engHist, "rgba(167,139,250,1)");
+}
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt = now - lastT; lastT = now;
+  if (dt > 0) fpsE += (1000/Math.max(1, dt) - fpsE)*0.06;
+  if (running){
+    for (let s=0;s<STEPS_PER_FRAME;s++) stepField();
+  }
+  render();
+  if ((frame++ % 15) === 0) updateHUD();
+}
+
+allocGrid(288, 180, false);
+setTool("pulse");
+setPalette("height");
+for (const inp of [el.brush, el.freq, el.amp, el.speed, el.damp]) paintSlider(inp);
+updateHUD();
+presetRipple();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
