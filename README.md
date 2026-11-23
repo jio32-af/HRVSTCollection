@@ -1,19 +1,27 @@
-### HRVSTCollection — by Satvik, 11
-Live: [https://harvestiq.streamlit.app](https://harvestiq.streamlit.app)
+# HRVSTCollection — by Satvik, 12
 
-Collection of projects built from scratch with AI assistance — I can explain every part.
+**Live Flagship App:** [harvestiq.streamlit.app](https://streamlit.app)
 
-### 1. HRVSTLab — Tax-Loss Harvesting Scanner
-Portfolio scanner that prices real holdings via Yahoo Finance and estimates federal tax savings.
+A curated collection of computational math, physics, AI, and quantitative finance projects built from scratch.
 
-### 2. HRVSTNeural — 8-Layer Neural Network from Scratch
-MLP `[4, 8, 8, 16, 16, 8, 8, 4, 2]` built in pure Python (no PyTorch) with manual backpropagation, He initialization, and custom training loss visualization.
+---
 
-### 3. HRVSTATSP — Asymmetric Traveling Salesperson Solver
-High-performance combinatorial optimization solver tackling NP-hard routing problems with cyclic-position validation and local search heuristics.
+### Flagship Projects & Interactive Simulations
 
-### 4. HRVSTDraw — Kinematic Linkage & Curve Tracer
-Interactive geometric drawing simulator modeling multi-bar linkages and inverse kinematics to trace complex curves.
+* **[HRVSTLab](./HrvstLab)** — Tax-Loss Harvesting Scanner using Yahoo Finance to price holdings and estimate tax savings.
 
-### 5. HRVSTStop — Optimal Stopping Theory Engine
-Mathematical decision-making simulator modeling the Secretary Problem and probabilistic stopping thresholds.
+* **[HRVSTTsp](./HRVSTTsp)** — Geometric Euclidean TSP Solver with a companion research paper (`HRVST_TSP_Benchmark_Paper.pdf`) utilizing Delaunay triangulation and MST candidate pruning.
+
+* **[HRVSTNeural](./HRVSTNeural)** — Custom 8-layer MLP built in pure Python featuring manual backpropagation and He initialization.
+
+* **[HRVSTDraw](./HRVSTDraw)** — Split-screen Discrete Fourier Transform (DFT) epicycle studio for drawing reconstructions.
+
+* **[HRVSTSim](./HRVSTSim)** — $O(N \log N)$ Barnes–Hut Quadtree gravitational N-body simulator with a Velocity Verlet integrator.
+
+* **[HRVSTWave](./HRVSTWave)** — Real-time 2D Finite-Difference Time-Domain (FDTD) wave equation solver with CFL stability monitoring.
+
+* **[HRVSTGraph](./HRVSTGraph)** — Comparative pathfinding and maze laboratory benchmarking A*, Dijkstra, and Greedy Best-First searches.
+
+* **[HRVSTCompress](./HRVSTCompress)** — Byte-level UTF-8 Huffman coding and 12-bit LZW compression visualizer.
+
+* **[HRVSTStop](./HRVSTStop)** — Probabilistic optimal stopping and Secretary Problem decision simulator.
