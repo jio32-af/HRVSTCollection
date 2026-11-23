@@ -24,4 +24,4 @@ A curated collection of computational math, physics, AI, and quantitative financ
 
 * **[HRVSTCompress](./HRVSTCompress)** — Byte-level UTF-8 Huffman coding and 12-bit LZW compression visualizer.
 
-* **[HRVSTStop](./HRVSTStop)** — Probabilistic optimal stopping and Secretary Problem decision simulator.
+
