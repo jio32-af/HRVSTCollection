@@ -3,30 +3,116 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>HRVSTNeural — 8-Layer MLP from Scratch</title>
+<title>HRVSTNeural — Letter Mirror in Your Browser</title>
 <style>
-:root{color-scheme:dark;--bg:#080c1a;--line:#263056;--txt:#eef1fd;--mut:#9aa6c7;--acc:#7aa2ff}
+:root{color-scheme:dark;--bg:#080c1a;--card:#121832;--line:#263056;--txt:#eef1fd;--mut:#9aa6c7;--acc:#7aa2ff}
 *{box-sizing:border-box}body{margin:0;font-family:ui-sans-serif,system-ui,sans-serif;background:var(--bg);color:var(--txt);line-height:1.6}
-.wrap{max-width:720px;margin:0 auto;padding:48px 20px 64px}
+.wrap{max-width:760px;margin:0 auto;padding:40px 20px 64px}
 a.back{color:var(--mut);text-decoration:none;font-size:14px}
-h1{letter-spacing:-1px;margin:8px 0} p{color:var(--mut)}
-.btns{display:flex;gap:10px;flex-wrap:wrap;margin:24px 0}
-.btns a{text-decoration:none;font-size:15px;border-radius:999px;padding:10px 20px;border:1px solid var(--line);color:var(--txt)}
-.btns a.primary{background:var(--acc);color:#0a1440;border-color:var(--acc);font-weight:700}
-pre{background:#00000055;border:1px solid var(--line);border-radius:12px;padding:14px;overflow:auto;font-size:13px}
+h1{letter-spacing:-1px;margin:8px 0 4px}p.sub{color:var(--mut);margin:0 0 16px}
+.trainer{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px}
+.row{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+#text{flex:1;min-width:140px;font-size:20px;padding:10px;letter-spacing:2px;background:#0a0f24;color:var(--txt);border:1px solid var(--line);border-radius:10px}
+button{font-size:15px;padding:10px 16px;border-radius:999px;border:1px solid var(--line);background:none;color:var(--txt);cursor:pointer}
+button.primary{background:var(--acc);color:#0a1440;border-color:var(--acc);font-weight:700}
+button:disabled{opacity:.5}
+#output{font-size:44px;letter-spacing:6px;min-height:84px;border:1px solid var(--line);border-radius:10px;padding:10px;background:#0a0f24;overflow-x:auto;white-space:nowrap}
+.nums{display:flex;gap:24px;margin-top:10px;color:var(--mut);font-size:14px}
+.nums b{display:block;color:var(--txt);font-size:24px}
+#status{margin-top:8px;color:var(--mut)}
+.src{margin-top:22px;font-size:14px;color:var(--mut)}
+.src a{color:var(--txt)}
+.note{font-size:13px;color:var(--mut);margin-top:16px}
 </style>
 </head>
 <body><div class="wrap">
 <a class="back" href="../">← All projects</a>
-<h1>HRVSTNeural</h1>
-<p>8-layer MLP <code>[4, 8, 8, 16, 16, 8, 8, 4, 2]</code> in pure Python — manual backprop, He init, custom loss plots. No PyTorch.</p>
-<div class="btns">
-<a class="primary" href="https://github.com/jio32-af/HRVSTCollection/tree/main/HRVSTNeural">Source on GitHub ↗</a>
+<h1>HRVSTNeural — Letter Mirror</h1>
+<p class="sub">The actual network from <code>network.py</code>/<code>layer.py</code>, ported line-for-line to JavaScript. Type 8 letters/digits/spaces and train — it learns to copy your text exactly, entirely in this page.</p>
+<div class="trainer">
+<div class="row">
+<input id="text" maxlength="8" value="hello 12">
+<button id="train" class="primary" onclick="startTrain()">Train this text</button>
+<button onclick="randomText()">Random</button>
 </div>
-<h2>Run it</h2>
-<pre>cd HRVSTNeural
-python3 train.py
-python3 demo.py</pre>
-<p>Python-only build — this page is its site entry so every flagship card opens somewhere.</p>
-</div></body>
+<div id="output"></div>
+<div class="nums"><div>Loss<b id="loss">–</b></div><div>Steps<b id="steps">0</b></div></div>
+<div id="status">Idle</div>
+</div>
+<p class="src">Python source: <a href="https://github.com/jio32-af/HRVSTCollection/tree/main/HRVSTNeural">HRVSTNeural on GitHub ↗</a> · architecture <code>[296, 64, 32, 16, 8, 16, 32, 64, 296]</code>, He init, ReLU, MSE.</p>
+<p class="note">Small-text training can take a few thousand steps (seconds). Big generic pretraining like <code>train.py</code> stays Python-only.</p>
+</div>
+<script>
+const VOCAB='abcdefghijklmnopqrstuvwxyz0123456789 ',NCHARS=8;
+const SIZES=[NCHARS*VOCAB.length,64,32,16,8,16,32,64,NCHARS*VOCAB.length];
+const LR=0.5;
+function randn(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();
+return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+class Layer{
+  constructor(nIn,nOut){this.nIn=nIn;this.nOut=nOut;
+    const std=Math.sqrt(2/nIn);
+    this.w=Array.from({length:nOut},()=>Array.from({length:nIn},()=>randn()*std));
+    this.b=new Array(nOut).fill(0)}
+  forward(x){const o=new Array(this.nOut).fill(0);
+    for(let j=0;j<this.nOut;j++){let s=this.b[j];const w=this.w[j];
+      for(let i=0;i<this.nIn;i++)s+=w[i]*x[i];o[j]=s}return o}
+}
+const relu=v=>v.map(x=>x>0?x:0);
+const reluB=(z,g)=>g.map((x,i)=>z[i]>0?x:0);
+const mse=(p,t)=>p.reduce((s,x,i)=>s+(x-t[i])**2,0)/p.length;
+class Net{
+  constructor(sizes){this.sizes=sizes;
+    this.layers=sizes.slice(1).map((n,k)=>new Layer(sizes[k],n))}
+  forward(x){this.xs=[];this.zs=[];
+    for(const L of this.layers.slice(0,-1)){this.xs.push(x);
+      const z=L.forward(x);this.zs.push(z);x=relu(z)}
+    this.xs.push(x);const z=this.layers[this.layers.length-1].forward(x);
+    this.zs.push(z);return z}
+  trainStep(x,t,lr){
+    const pred=this.forward(x),n=pred.length;
+    let dout=pred.map((p,i)=>2*(p-t[i])/n);
+    for(let k=this.layers.length-1;k>=0;k--){
+      const L=this.layers[k],xin=this.xs[k],z=this.zs[k];
+      if(k!==this.layers.length-1)dout=reluB(z,dout);
+      const dW=dout.map(g=>xin.map(v=>g*v)),db=dout.slice();
+      const dx=new Array(L.nIn).fill(0);
+      for(let j=0;j<L.nOut;j++)for(let i=0;i<L.nIn;i++)dx[i]+=L.w[j][i]*dout[j];
+      for(let j=0;j<L.nOut;j++){for(let i=0;i<L.nIn;i++)L.w[j][i]-=lr*dW[j][i];L.b[j]-=lr*db[j]}
+      dout=dx}
+    return mse(pred,t)}
+}
+function encode(t){t=t.toLowerCase().padEnd(NCHARS,' ').slice(0,NCHARS);
+  const v=new Array(NCHARS*VOCAB.length).fill(0);
+  [...t].forEach((c,k)=>{const i=VOCAB.indexOf(c);if(i>=0)v[k*VOCAB.length+i]=1});
+  return {vec:v,str:t}}
+function decode(o){let s='';
+  for(let k=0;k<NCHARS;k++){let bi=0,bv=-1e9;
+    for(let i=0;i<VOCAB.length;i++){const v=o[k*VOCAB.length+i];if(v>bv){bv=v;bi=i}}
+    s+=VOCAB[bi]}return s}
+let net=null,target='hello 12',timer=null,steps=0;
+function render(out,loss){document.getElementById('output').textContent=out;
+  document.getElementById('loss').textContent=loss.toFixed(4);
+  document.getElementById('steps').textContent=steps}
+function chunk(){
+  const {vec}=encode(target);
+  let loss=0,out='';
+  for(let s=0;s<25;s++){loss=net.trainStep(vec,vec,LR);steps++;out=decode(net.forward(vec));
+    if(out===encode(target).str)break}
+  render(out,loss);
+  if(out===encode(target).str){document.getElementById('status').textContent='Matched exactly ✓';
+    document.getElementById('train').disabled=false;timer=null;return}
+  if(steps>60000){document.getElementById('status').textContent='Stopped at 60k steps — try shorter text';
+    document.getElementById('train').disabled=false;timer=null;return}
+  document.getElementById('status').textContent='Training…';
+  timer=setTimeout(chunk,0);
+}
+function startTrain(){
+  if(timer)return;net=new Net(SIZES);steps=0;
+  target=document.getElementById('text').value||'hello 12';
+  document.getElementById('train').disabled=true;chunk();
+}
+function randomText(){let s='';for(let i=0;i<NCHARS;i++)s+=VOCAB[(Math.random()*VOCAB.length)|0];
+  document.getElementById('text').value=s}
+</script>
+</body>
 </html>
