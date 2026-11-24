@@ -84,14 +84,16 @@ export const ADV=[
 export function stats(save){
   const L=id=>save.ups[id]||0;
   const P=id=>(save.perm||{})[id]||0;
+  const mob=(typeof document!=='undefined')&&document.body.classList.contains('touch');
   const ti=tierInfo(save.tier);
   const pm=permMass(save);
   return {
     M0: 10*Math.pow(1.25,L('core'))*ti.m0Mult*pm,
     gain: (1+0.15*L('dense'))*ti.gainMult*pm,
     thrust: 1+0.20*L('ion'),
-    thr: 120*(1+0.20*L('ion'))*(1+0.06*P('eengine')),
-    maxSpd: 860,
+    thr: (mob?120:95)*(1+0.20*L('ion'))*(1+0.06*P('eengine')),
+    maxSpd: mob?860:780,
+    damp: mob?0.995:0.996,
     predSecs: 3+L('nav')*1.2,
     hull: Math.pow(0.94,L('hull')),
     stab: L('stab'),

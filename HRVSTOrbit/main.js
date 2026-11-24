@@ -1,10 +1,12 @@
-import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=18';
-import {drawWorld, makeStars, tierTheme} from './renderer.js?v=18';
-import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=18';
-import * as AU from './audio.js?v=18';
+import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=19';
+import {drawWorld, makeStars, tierTheme} from './renderer.js?v=19';
+import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=19';
+import * as AU from './audio.js?v=19';
 
 const cv=document.getElementById('game'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
+const IS_TOUCH=('ontouchstart' in window);
+const DMAX=IS_TOUCH?1.5:2; // mobile renders lighter; desktop keeps full fidelity
 const hud=$('hud'),startEl=$('start'),forgeEl=$('forge'),pauseEl=$('pause'),endEl=$('end'),advEl=$('adv');
 
 let save=loadSave();
@@ -12,7 +14,7 @@ let R=null; // run state
 let keys={}, mouse={x:0,y:0,L:false,R:false,active:false};
 let shake=0, hitstop=0;
 
-function resize(){ const d=Math.min(1.5,devicePixelRatio||1);
+function resize(){ const d=Math.min(DMAX,devicePixelRatio||1);
   cv.width=innerWidth*d; cv.height=innerHeight*d; }
 addEventListener('resize',resize); resize();
 
@@ -112,7 +114,7 @@ function renderForge(){
     const d=byId[selId]||byId[TREE_ROOT];
     const pre=PREREQ[d.id]||null, open=!pre||(save.ups[pre]||0)>0;
     const mx=maxFor(d,save.tier), lvl=save.ups[d.id]||0, cost=lvl>=mx?'—':costOf(d,lvl)+' BP';
-    import('./upgrades.js?v=18').then(m=>{
+    import('./upgrades.js?v=19').then(m=>{
       box.innerHTML='<h4>'+d.name+' <span class="lv">'+lvl+'/'+mx+'</span></h4>'+
         '<p>'+d.desc+'</p><div class="tip">'+m.nextTip(d,lvl,mx,save.tier)+' · '+cost+'</div>';
       const b=document.createElement('button');
@@ -249,7 +251,7 @@ addEventListener('mouseup',e=>{ if(e.button===0)mouse.L=false; if(e.button===2)m
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 // Mobile: left-half floating stick = WASD thrust, right-half hold = boost toward finger.
 const joy={x:0,y:0,id:null,bx:0,by:0}; let boostId=null, brakeTouch=false, stabTouch=false;
-if('ontouchstart' in window) document.body.classList.add('touch');
+if(IS_TOUCH) document.body.classList.add('touch');
 function stickDraw(dx,dy){ const k=$('knob'); if(k) k.style.transform='translate('+dx+'px,'+dy+'px)'; }
 cv.addEventListener('touchstart',e=>{ e.preventDefault(); AU.resume();
   for(const t of e.changedTouches){
@@ -282,7 +284,7 @@ function startRun(){
 addEventListener('error',e=>{ if(!R||R.menu) startErr(e.message||'unknown error'); });
 function popup(txt,wx,wy,color){ const d=document.createElement('div'); d.className='pop'; d.textContent=txt;
   if(color)d.style.color=color;
-  const z=R.cam.z,W=cv.width/Math.min(1.5,devicePixelRatio||1),H=cv.height/Math.min(1.5,devicePixelRatio||1);
+  const z=R.cam.z,W=cv.width/Math.min(DMAX,devicePixelRatio||1),H=cv.height/Math.min(DMAX,devicePixelRatio||1);
   d.style.left=((wx-R.cam.x)*z+W/2)+'px'; d.style.top=((wy-R.cam.y)*z+H/2)+'px';
   $('popups').appendChild(d); setTimeout(()=>d.remove(),1000); }
 
@@ -357,7 +359,7 @@ function frame(now){
   if(keys['w']||keys['arrowup'])ay-=base; if(keys['s']||keys['arrowdown'])ay+=base;
   if(keys['a']||keys['arrowleft'])ax-=base; if(keys['d']||keys['arrowright'])ax+=base;
   // mouse: smooth proportional steering toward the cursor
-  const dpr=Math.min(1.5,devicePixelRatio||1), W=cv.width/dpr, H=cv.height/dpr;
+  const dpr=Math.min(DMAX,devicePixelRatio||1), W=cv.width/dpr, H=cv.height/dpr;
   if(mouse.L||mouse.R||mouse.active){
     const wx=(mouse.x-W/2)/R.cam.z+R.cam.x, wy=(mouse.y-H/2)/R.cam.z+R.cam.y;
     let dx=wx-R.p.x, dy=wy-R.p.y; const d=Math.hypot(dx,dy)||1;
@@ -373,7 +375,7 @@ function frame(now){
   AU.setWind(R.thrustMag>1?Math.min(1,R.thrustMag/300):0);
   // manual = hard inputs only: hover-steer must not block the stabilizer
   R.manual=!!(keys['w']||keys['a']||keys['s']||keys['d']||keys['arrowup']||keys['arrowdown']||keys['arrowleft']||keys['arrowright']||mouse.L||mouse.R||joy.x||joy.y||brakeTouch);
-  stepBody(R.p,R.B,dt,{ax,ay},st.maxSpd);
+  stepBody(R.p,R.B,dt,{ax,ay},st.maxSpd,st.damp);
   // Orbit Stabilizer (Stabilizer Core upgrade): Space / Shift / STAB button eases into a circular orbit
   R.stab=st.stab>0&&(keys[' ']||keys['shift']||stabTouch)&&!R.manual;
   if(R.stab) stabilize(R.p,R.B,dt,0.7+0.3*st.stab);
@@ -396,8 +398,9 @@ function frame(now){
   R.nearEdge=(R.BR-rr)<350;
   R.p.M=R.M; R.p.r=5+Math.cbrt(R.M)*1.6;
   R.p.angle=Math.atan2(R.p.vy,R.p.vx);
-  // magnet: forgiving base reach so steering feels assisted, still capped
-  const magR=Math.min(400,(18+R.p.r*1.6)*st.magnet*Math.pow(Math.max(1,R.M/10),0.14));
+  // magnet: forgiving on mobile, classic tight reach on desktop
+  const magR=IS_TOUCH?Math.min(400,(18+R.p.r*1.6)*st.magnet*Math.pow(Math.max(1,R.M/10),0.14))
+    :Math.min(340,(14+R.p.r*1.4)*st.magnet*Math.pow(Math.max(1,R.M/10),0.14));
   for(let i=R.bodies.length-1;i>=0;i--){
     const b=R.bodies[i];
     // drift bodies on rails
@@ -461,7 +464,8 @@ function frame(now){
   // camera: stay zoomed on the character, track tightly
   const tz=Math.max(0.35,Math.min(2.2,900/Math.max(360,r*1.1)));
   R.cam.z+=(tz-R.cam.z)*dt*2.5;
-  R.cam.x+=(R.p.x-R.cam.x)*dt*4; R.cam.y+=(R.p.y-R.cam.y)*dt*4; // dead-center on the ship
+  const cf=IS_TOUCH?1:0.95;
+  R.cam.x+=(R.p.x*cf-R.cam.x)*dt*4; R.cam.y+=(R.p.y*cf-R.cam.y)*dt*4;
   if(shake>0)shake-=dt*30;
   // predictor
   R.predict=predictPath(R.p,R.B,st.predSecs,42);
@@ -497,9 +501,9 @@ function updateHUD(){
 }
 let blast=0;
 function render(dt){
-  ctx.setTransform(Math.min(1.5,devicePixelRatio||1),0,0,Math.min(1.5,devicePixelRatio||1),0,0);
+  ctx.setTransform(Math.min(DMAX,devicePixelRatio||1),0,0,Math.min(DMAX,devicePixelRatio||1),0,0);
   if(shake>0) ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake);
-  drawWorld(ctx,{cam:R.cam,starsFar:R.starsFar,starsNear:R.starsNear,Rs:R.Rs,p:R.p,bodies:R.bodies,theme:tierTheme(R.tier),
+  drawWorld(ctx,{cam:R.cam,starsFar:R.starsFar,starsNear:R.starsNear,Rs:R.Rs,p:R.p,bodies:R.bodies,theme:tierTheme(R.tier),touch:IS_TOUCH,
     predict:R.predict,time:R.time,moon:R.moon,trail:R.trail,heat:R.heat,stretch:R.stretch,
     thrustMag:R.thrustMag,showPings:R.showPings,BR:R.BR,nearEdge:R.nearEdge,edgeT:R.edgeT,
     sparks:R.sparks,stab:R.stab});

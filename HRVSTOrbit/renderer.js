@@ -20,7 +20,7 @@ function nebFor(th){
   let s=0; for(const ch of th.name) s=(s*31+ch.charCodeAt(0))>>>0;
   const rnd=()=>((s=(s*16807)%2147483647)/2147483647);
   const blobs=[];
-  for(let i=0;i<11;i++) blobs.push({x:rnd()*4000-2000,y:rnd()*4000-2000,r:200+rnd()*320,
+  for(let i=0;i<16;i++) blobs.push({x:rnd()*4000-2000,y:rnd()*4000-2000,r:220+rnd()*420,
     c:i%2?th.disk[0]:th.accent, a:0.05+rnd()*0.09, ph:rnd()*6.28, sp:0.05+rnd()*0.12});
   nebCache[th.name]=blobs; return blobs;
 }
@@ -44,7 +44,9 @@ export function drawWorld(ctx, S){
   const W=ctx.canvas.width, H=ctx.canvas.height;
   // nebula wash: additive drifting clouds in this tier's palette
   ctx.save(); ctx.globalCompositeOperation='lighter';
-  for(const nb of nebFor(th)){
+  const nebs=nebFor(th);
+  for(let ni=0;ni<nebs.length;ni++){ const nb=nebs[ni];
+    if(S.touch&&(ni%3===2)) continue; // mobile skips every third cloud
     const bx2=(nb.x*0.12-cam.x*0.12)*cam.z+W/2+Math.cos(S.time*nb.sp+nb.ph)*30;
     const by2=(nb.y*0.12-cam.y*0.12)*cam.z+H/2+Math.sin(S.time*nb.sp+nb.ph)*30;
     if(bx2<-700||by2<-700||bx2>W+700||by2>H+700) continue;
@@ -128,7 +130,7 @@ export function drawWorld(ctx, S){
     ctx.save();
     ctx.strokeStyle=S.nearEdge||S.edgeT>0?'rgba(255,70,90,.9)':th.accent;
     ctx.lineWidth=S.edgeT>0?3.5:2;
-    ctx.shadowBlur=S.edgeT>0?8:6;
+    ctx.shadowBlur=S.touch?(S.edgeT>0?8:6):(S.edgeT>0?22:10);
     ctx.shadowColor=S.nearEdge||S.edgeT>0?'#ff465a':th.accent;
     ctx.setLineDash([26,18]);
     ctx.lineDashOffset=-S.time*40;
@@ -171,10 +173,13 @@ export function drawWorld(ctx, S){
 function drawBody(ctx,b,sx,sy,r,S){
   const edible=b.mass<S.p.M;
   ctx.save(); ctx.translate(sx,sy); ctx.rotate(b.rot||0);
-  if(b.tier===5){ // MEGA colossus: radiant gold with crackling crown (no shadowBlur: GPU-cheap)
+  if(b.tier===5&&!S.touch){ // MEGA colossus: desktop glow crown
+    ctx.shadowBlur=24; ctx.shadowColor='#ffd34d'; }
+  if(b.tier===5){ // radiant gold body + crackling crown (cheap layered strokes on mobile)
     const g=ctx.createRadialGradient(0,0,r*0.2,0,0,r);
     g.addColorStop(0,'#fff6d8'); g.addColorStop(0.55,'#f5b93c'); g.addColorStop(1,'#7a4a12');
     ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,r,0,6.29); ctx.fill();
+    if(!S.touch) ctx.shadowBlur=0;
     ctx.strokeStyle='rgba(255,211,77,.35)'; ctx.lineWidth=6;
     ctx.beginPath(); ctx.arc(0,0,r*1.1,0,6.29); ctx.stroke();
     ctx.strokeStyle='rgba(255,240,190,.9)'; ctx.lineWidth=2.5;
@@ -182,8 +187,8 @@ function drawBody(ctx,b,sx,sy,r,S){
     ctx.fillStyle='rgba(90,50,5,.5)';
     ctx.beginPath(); ctx.arc(-r*0.3,-r*0.15,r*0.22,0,6.29); ctx.arc(r*0.25,r*0.3,r*0.16,0,6.29); ctx.fill();
   }
-  if(b.shiny==='gold'){ ctx.shadowBlur=10; ctx.shadowColor='#ffd34d'; }
-  if(b.shiny==='diamond'){ ctx.shadowBlur=12; ctx.shadowColor='#d8fbff'; }
+  if(b.shiny==='gold'){ ctx.shadowBlur=S.touch?10:18; ctx.shadowColor='#ffd34d'; }
+  if(b.shiny==='diamond'){ ctx.shadowBlur=S.touch?12:22; ctx.shadowColor='#d8fbff'; }
   if(b.tier===0){ // comet: bright head + fading tail along its motion
     const sp2=Math.max(1,Math.hypot(b.vx,b.vy)), tx=-b.vx/sp2, ty=-b.vy/sp2;
     const tg=ctx.createLinearGradient(0,0,tx*r*4,ty*r*4);
@@ -223,7 +228,7 @@ function drawBody(ctx,b,sx,sy,r,S){
   // nav-computer edge ping for high-value metals
   if(S.showPings&&((b.tier===2||b.tier===5)||b.shiny)&&edible){
     ctx.fillStyle=b.shiny==='diamond'?'#d8fbff':(b.shiny==='gold'?'#ffd34d':(b.tier===5?'#ffe9a8':'#ffd166')); ctx.font='11px sans-serif';
-    const dpr=Math.min(1.5,devicePixelRatio||1);
+    const dpr=S.touch?Math.min(1.5,devicePixelRatio||1):Math.min(2,devicePixelRatio||1);
     const cx=Math.max(14,Math.min(ctx.canvas.width/dpr-90,sx)), cy=b.y<S.p.y?26:ctx.canvas.height/dpr-26;
     ctx.fillText(b.shiny==='diamond'?('◈ DIAMOND ×100'):b.shiny==='gold'?('◈ GOLD ×10'):(b.tier===5?('◈ MEGA '+Math.round(b.mass)):('◈ Fe '+Math.round(b.mass))),cx,cy);
   }

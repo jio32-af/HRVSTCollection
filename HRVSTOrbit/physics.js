@@ -25,7 +25,7 @@ export function holeMass(B0, t, hawkingLvl){
 }
 export function circularOrbitVel(r, B){ return Math.sqrt(G * B / Math.max(r, 1)); }
 // Integrate player state {x,y,vx,vy} toward origin with thrust accel.
-export function stepBody(s, B, dt, thrust, maxSpd){
+export function stepBody(s, B, dt, thrust, maxSpd, damp){
   const SUB = 4, h = dt / SUB;
   const thrusting = thrust && Math.hypot(thrust.ax, thrust.ay) > 1;
   for(let i=0;i<SUB;i++){
@@ -35,7 +35,7 @@ export function stepBody(s, B, dt, thrust, maxSpd){
     let ax = -a * s.x / r + (thrust?thrust.ax:0);
     let ay = -a * s.y / r + (thrust?thrust.ay:0);
     s.vx += ax*h; s.vy += ay*h;
-    if(!thrusting){ s.vx *= 0.995; s.vy *= 0.995; } // coast damping: smooth orbits
+    if(!thrusting){ const dp=(damp==null?0.996:damp); s.vx *= dp; s.vy *= dp; } // coast damping: smooth orbits
     s.x += s.vx*h; s.y += s.vy*h;
   }
   if(maxSpd){ // delta-v cap
