@@ -8,7 +8,7 @@ A curated collection of computational math, physics, AI, and quantitative financ
 
 ## Features
 
-* **5 live browser demos** — wave physics, pathfinding, N-body gravity, compression, and Fourier drawing. No install, click and play.
+* **6 live browser demos** — wave physics, pathfinding, N-body gravity, compression, Fourier drawing, and a black-hole orbital incremental simulation. No install, click and play.
 * **3 Python flagships** — a tax-loss harvester on real market data, a TSP solver with a published 5-page benchmark paper, and an 8-layer neural net with hand-written backprop.
 * **Real benchmarks** — 400-trial TSP study (0.000%–0.066% optimality gap), loss curves, and fail-case logs kept in-repo.
 
@@ -72,6 +72,7 @@ HRVSTCollection/
 ├── HRVSTSim/             # Barnes–Hut N-body engine (browser)
 ├── HRVSTCompress/        # Huffman + LZW visualizer (browser)
 ├── HRVSTDraw/            # DFT epicycle studio (browser)
+├── HRVSTOrbit/            # black-hole accretion incremental sim (browser)
 ├── HRVSTTsp/             # Euclidean TSP solver + benchmark paper
 │   ├── TSP.py
 │   └── HRVST_TSP_Benchmark_Paper.pdf

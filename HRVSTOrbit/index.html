@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HRVSTOrbit — Black-Hole Accretion Simulator</title>
+<link rel="stylesheet" href="style.css?v=17">
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game"></canvas>
+  <div id="toast" class="hidden"></div>
+  <div id="stick" class="hidden"><div id="knob"></div></div>
+  <div id="touchBtns" class="hidden">
+    <button id="btnBrake">BRAKE</button>
+    <button id="btnStab">STAB</button>
+  </div>
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="hud-stats glass">
+        <div class="stat"><label>MASS M</label><b id="hM">10</b></div>
+        <div class="stat"><label>HOLE B</label><b id="hB">10,000</b></div>
+        <div class="stat"><label>RATIO</label><b id="hR">0.001</b></div>
+        <div class="stat"><label>+BP</label><b id="hBP">0.10</b></div>
+      </div>
+      <div class="hud-mid glass">
+        <div id="tier">TIER 1/10</div>
+        <div id="timer">5:00</div>
+        <div id="progbar"><div id="progfill"></div><span id="proglabel"></span></div>
+      </div>
+      <div class="hud-right glass">
+        <div id="combo">x1.0</div>
+        <button id="btnPause" title="Pause (ESC)">II</button>
+        <button id="btnMute" title="Mute">SND</button>
+        <input id="vol" type="range" min="0" max="100" value="60">
+      </div>
+    </div>
+    <div id="popups"></div>
+    <div id="warn"></div>
+  </div>
+
+  <div id="start" class="screen">
+    <div class="panel menu">
+      <div id="menuTier">TIER 1/10</div>
+      <h1>HRVST<span>ORBIT</span></h1>
+      <p class="sub">An orbital-mechanics simulation. Pilot a meteoroid, feed, and outgrow the hole in five minutes.</p>
+      <div class="menu-col">
+        <button id="btnStart" class="big">▶&nbsp; IGNITE ORBIT</button>
+        <button id="btnForge" class="ghost">SINGULARITY FORGE</button>
+        <button id="btnAdv" class="ghost">ADVANCEMENTS</button>
+      </div>
+      <div class="how">
+        <div><b>WASD / Arrows</b> thrusters · <b>Mouse</b> steer · <b>L-Click</b> boost · <b>R-Click</b> brake* · <b>Space</b> stabilizer* · <b>ESC</b> pause</div>
+        <div>* Forge unlocks · Eat the small, dodge the big, out-mass the hole before 0:00.</div>
+      </div>
+      <div class="saverow">
+        <span id="bankLine">BP bank: 0 · Runs: 0 · Best: 10</span>
+        <button id="btnExport" class="ghost sm">Export</button>
+        <button id="btnImport" class="ghost sm">Import</button>
+        <button id="btnWipe" class="ghost sm danger">Wipe save</button>
+      </div>
+      <textarea id="saveBox" class="hidden" placeholder="paste save string…"></textarea>
+    </div>
+  </div>
+
+  <div id="adv" class="screen hidden">
+    <div class="panel wide">
+      <h2>ADVANCEMENTS</h2>
+      <p class="sub">Milestones pay +2 BP each, kept forever.</p>
+      <div id="advs"></div>
+      <div class="row">
+        <button id="btnAdvBack" class="ghost">← BACK</button>
+        <button id="btnAdvGo" class="big">IGNITE ORBIT</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="forge" class="screen hidden">
+    <div class="panel wide">
+      <h2>SINGULARITY FORGE</h2>
+      <p class="sub">Bank: <b id="bank">0 BP</b> · spend blackhole points won from every run (win or lose).</p>
+      <div id="tree"></div>
+      <div id="nodeDetail"><p>Select a node to inspect it.</p></div>
+      <div id="eternal"></div>
+      <div class="row">
+        <button id="btnBack" class="ghost">← BACK</button>
+        <button id="btnGo" class="big">START RUN</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pause" class="screen hidden">
+    <div class="panel">
+      <h2>PAUSED</h2>
+      <div class="row">
+        <button id="btnResume" class="big">RESUME</button>
+        <button id="btnQuit" class="ghost">ABANDON RUN</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="end" class="screen hidden">
+    <div class="panel">
+      <h2 id="endTitle">SPAGHETTIFIED</h2>
+      <p id="endFlavor" class="sub"></p>
+      <div id="breakdown"></div>
+      <div class="row">
+        <button id="btnAgain" class="big">RETRY</button>
+        <button id="btnRebirth" class="big hidden">REBIRTH</button>
+        <button id="btnForge2" class="ghost">FORGE</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script type="module" src="main.js?v=17"></script>
+</body>
+</html>
