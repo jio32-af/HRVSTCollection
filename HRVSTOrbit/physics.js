@@ -35,7 +35,7 @@ export function stepBody(s, B, dt, thrust, maxSpd){
     let ax = -a * s.x / r + (thrust?thrust.ax:0);
     let ay = -a * s.y / r + (thrust?thrust.ay:0);
     s.vx += ax*h; s.vy += ay*h;
-    if(!thrusting){ s.vx *= 0.996; s.vy *= 0.996; } // coast damping: smooth orbits
+    if(!thrusting){ s.vx *= 0.995; s.vy *= 0.995; } // coast damping: smooth orbits
     s.x += s.vx*h; s.y += s.vy*h;
   }
   if(maxSpd){ // delta-v cap
