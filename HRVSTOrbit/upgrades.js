@@ -23,18 +23,21 @@ export function baseBP(M, B){
   if(M > 20) r = Math.max(0.45, r);
   return r;
 }
-// Singularity Ladder: 10 tiers. Each tier raises the hole, enriches bodies,
-// shortens the clock slightly, and uncaps every upgrade by +1 level.
-export function tierInfo(tier){
+// Singularity Ladder: 10 tiers (then endless cycles). Math guarantee: the win
+// threshold scales 3x per tier/cycle AND food + starting mass scale 3x too, so
+// every tier plays identically — always winnable on skill, to infinity.
+export function tierInfo(tier, cycles){
   const t = Math.max(1, tier || 1);
+  const c = Math.max(0, cycles || 0);
+  const e = (t - 1) + c; // total ladder steps (tiers + endless cycles)
   return {
     // Win-threshold mass: 3x heavier every tier. Gravity and visual size stay
     // fixed (they run off the physical mass, which resets every tier).
     b0: 10000 * Math.pow(3, t - 1),
-    bodyMult: 1 + 0.35 * (t - 1),
+    bodyMult: Math.pow(3, e),
     speedMult: 1 + 0.05 * (t - 1),
     clockBase: Math.max(210, 300 - 10 * (t - 1)),
-    m0Mult: 1 + 0.5 * (t - 1),
+    m0Mult: Math.pow(3, e),
     gainMult: 1 + 0.15 * (t - 1),
   };
 }
@@ -95,7 +98,7 @@ export function stats(save){
   const L=id=>(save.ups[id]||0)+(save.rpups[id]||0); // BP levels reset on rebirth; RP levels are permanent
   const P=id=>(save.perm||{})[id]||0;
   const mob=(typeof document!=='undefined')&&document.body.classList.contains('touch');
-  const ti=tierInfo(save.tier);
+  const ti=tierInfo(save.tier, save.cycles);
   const pm=permMass(save);
   return {
     M0: 10*Math.pow(1.25,L('core'))*ti.m0Mult*pm,

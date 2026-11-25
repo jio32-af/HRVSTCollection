@@ -22,7 +22,7 @@ addEventListener('resize',resize); resize();
 function newRun(){
   const st=stats(save);
   const tier=save.tier||1, cycles=save.cycles||0;
-  const ti=tierInfo(tier);
+  const ti=tierInfo(tier, cycles);
   // Physical mass drives gravity + size: identical every tier. The win threshold
   // (Bwin) is the physical mass scaled 3x per tier/cycle — heavy on paper only.
   const winF=Math.pow(3,(tier-1)+cycles);
