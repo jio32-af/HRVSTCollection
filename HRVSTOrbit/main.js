@@ -1,7 +1,7 @@
-import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=19';
-import {drawWorld, makeStars, tierTheme} from './renderer.js?v=19';
-import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=19';
-import * as AU from './audio.js?v=19';
+import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=20';
+import {drawWorld, makeStars, tierTheme} from './renderer.js?v=20';
+import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=20';
+import * as AU from './audio.js?v=20';
 
 const cv=document.getElementById('game'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -55,9 +55,9 @@ function spawnBody(any=false){
   if(!any&&Math.random()<0.045&&R.t>20){
     const mrr=260+Math.random()*220;
     const mx=Math.cos(a)*mrr, my=Math.sin(a)*mrr;
-    const mmass=Math.max(50,R.M*4)*R.bodyMult;
+    const mmass=Math.max(50,10*Math.pow(1.022,R.t)*3)*R.bodyMult;
     const mvo=circularOrbitVel(Math.max(200,mrr),R.B)*0.6*R.speedMult;
-    R.bodies.push({x:mx,y:my,vx:-Math.sin(a)*mvo,vy:Math.cos(a)*mvo,mass:mmass,r:8+Math.cbrt(mmass)*2.4,tier:5,rot:0,seed:Math.random()*10,mega:true});
+    R.bodies.push({x:mx,y:my,vx:-Math.sin(a)*mvo,vy:Math.cos(a)*mvo,mass:mmass,r:6+Math.cbrt(mmass)*1.7,tier:5,rot:0,seed:Math.random()*10,mega:true});
     if(R.bodies.length>220) R.bodies.splice(0,R.bodies.length-220);
     return;
   }
@@ -68,9 +68,9 @@ function spawnBody(any=false){
   let mult;
   if(!late) mult = roll<0.45?0.1+Math.random()*0.4 : roll<0.8?0.5+Math.random()*0.45 : roll<0.94?0.8+Math.random()*0.4 : 1.5+Math.random()*3;
   else mult = roll<0.25?0.1+Math.random()*0.4 : roll<0.5?0.5+Math.random()*0.45 : roll<0.7?0.8+Math.random()*0.4 : roll<0.88?1.5+Math.random()*3 : 3+Math.random()*6;
-  // anchor spawned mass to run time so one big meal can't inflate the whole map
+  // spawns scale ONLY with run time — never with player mass (no endgame snowball)
   const timeScale=10*Math.pow(1.022,R.t); // ~10 → ~6,800 over 5 mins
-  const mass=Math.max(0.5,(timeScale*0.7+R.M*0.3)*mult);
+  const mass=Math.max(0.5,timeScale*mult);
   // shinies: 1% gold (10x), 0.1% diamond (100x) — tier judged on base mass, jackpot stays edible
   const su=Math.random();
   const shiny=su<0.001?'diamond':(su<0.011?'gold':null);
@@ -78,7 +78,7 @@ function spawnBody(any=false){
   const m2=fmass*0.65*R.bodyMult;
   const tier=bodyTier(mass,R.M);
   const vo=circularOrbitVel(Math.max(200,Math.hypot(x,y)),R.B)*(0.85+Math.random()*0.3)*R.speedMult;
-  R.bodies.push({x,y,vx:-Math.sin(a)*vo,vy:Math.cos(a)*vo,mass:m2,r:5+Math.cbrt(Math.max(1,m2))*2.1,tier,rot:Math.random()*6.28,seed:Math.random()*10,moon:tier===3&&Math.random()<0.5,shiny});
+  R.bodies.push({x,y,vx:-Math.sin(a)*vo,vy:Math.cos(a)*vo,mass:m2,r:4+Math.cbrt(Math.max(1,m2))*1.5,tier,rot:Math.random()*6.28,seed:Math.random()*10,moon:tier===3&&Math.random()<0.5,shiny});
   if(R.bodies.length>220) R.bodies.splice(0,R.bodies.length-220);
 }
 
@@ -95,33 +95,48 @@ const PREREQ={nav:'ion',hull:'nav',stab:'hull',brake:'stab',core:'ion',dense:'co
 const ABBR={ion:'IO',nav:'NV',hull:'HU',stab:'ST',brake:'BR',core:'PC',dense:'HD',twin:'BT',hill:'HS',roche:'RL',harv:'AH',time:'TD',hawk:'HR',res:'SR'};
 let selId='ion';
 function renderForge(){
-  $('bank').textContent=save.bp.toFixed(2)+' BP · Tier '+(save.tier||1)+'/10 caps (win to uncap +1/level)';
+  $('bank').textContent=save.bp.toFixed(2)+' BP · '+save.rp.toFixed(0)+' RP · Tier '+(save.tier||1)+'/10 caps (win to uncap +1/level)';
+  const bb=$('btnBulk'); if(bb) bb.textContent=bulk===1?'BUY ×1':'BUY ×5 (−10%)';
   const t=$('tree'); t.innerHTML='<svg id="links"></svg>';
+  const effLvl=id=>(save.ups[id]||0)+(save.rpups[id]||0); // BP + RP levels combined
+  const isOpen=id=>{ const pre=PREREQ[id]||null; return !pre||effLvl(pre)>0; };
   const mkNode=d=>{
-    const pre=PREREQ[d.id]||null;
-    const seen=!pre||(save.ups[pre]||0)>0; // fog of war: invisible until parent bought
-    const mx=maxFor(d,save.tier), lvl=save.ups[d.id]||0;
+    const seen=isOpen(d.id); // fog of war: invisible until parent bought
+    const mx=maxFor(d,save.tier), lvl=effLvl(d.id), rpl=save.rpups[d.id]||0;
     const div=document.createElement('div');
-    div.className='tnode'+(seen?'':' fog')+(lvl>0?' owned':'')+(lvl>=mx&&seen?' maxed':'')+(selId===d.id?' sel':'');
+    div.className='tnode'+(seen?'':' fog')+(lvl>0?' owned':'')+(lvl>=mx&&seen?' maxed':'')+(rpl>0?' rp':'')+(selId===d.id?' sel':'');
     div.dataset.id=d.id;
-    div.innerHTML='<span class="dot">'+(ABBR[d.id]||'??')+'</span><span class="nlv">'+lvl+'/'+mx+'</span>';
-    div.title=d.name+' '+lvl+'/'+mx;
+    div.innerHTML='<span class="dot">'+(ABBR[d.id]||'??')+'</span><span class="nlv">'+lvl+'/'+mx+'</span>'+(rpl>0?'<span class="rlv">+'+rpl+'</span>':'');
+    div.title=d.name+' '+lvl+'/'+mx+(rpl>0?' ('+rpl+' RP, permanent)':'');
     if(seen) div.onclick=()=>{ selId=d.id; renderForge(); };
     return div;
   };
   const renderDetail=()=>{
     const box=$('nodeDetail'); if(!box) return;
     const d=byId[selId]||byId[TREE_ROOT];
-    const pre=PREREQ[d.id]||null, open=!pre||(save.ups[pre]||0)>0;
-    const mx=maxFor(d,save.tier), lvl=save.ups[d.id]||0, cost=lvl>=mx?'—':costOf(d,lvl)+' BP';
-    import('./upgrades.js?v=19').then(m=>{
+    const pre=PREREQ[d.id]||null, open=isOpen(d.id);
+    const mx=maxFor(d,save.tier), lvl=effLvl(d.id), bl=save.ups[d.id]||0, rl=save.rpups[d.id]||0;
+    const k=bulkK(mx,lvl);
+    import('./upgrades.js?v=20').then(m=>{
       box.innerHTML='<h4>'+d.name+' <span class="lv">'+lvl+'/'+mx+'</span></h4>'+
-        '<p>'+d.desc+'</p><div class="tip">'+m.nextTip(d,lvl,mx,save.tier)+' · '+cost+'</div>';
-      const b=document.createElement('button');
-      if(!open){ b.textContent='NEEDS '+byId[pre].name.toUpperCase(); b.disabled=true; }
-      else { b.textContent=lvl>=mx?'MAXED':'BUY · '+cost; b.disabled=lvl>=mx||save.bp<costOf(d,lvl); }
-      b.onclick=()=>{ const c=costOf(d,lvl); if(save.bp>=c&&lvl<maxFor(d,save.tier)){ save.bp-=c; save.ups[d.id]=lvl+1; storeSave(save); refreshBank(); renderForge(); } };
-      box.appendChild(b);
+        '<p>'+d.desc+'</p><div class="tip">'+m.nextTip(d,lvl,mx,save.tier)+'</div>'+
+        '<div class="lvrow">BP lv '+bl+' (resets) · RP lv '+rl+' (permanent)</div>';
+      const row=document.createElement('div'); row.className='buyrow';
+      const b1=document.createElement('button'), b2=document.createElement('button');
+      if(!open){ b1.textContent='NEEDS '+byId[pre].name.toUpperCase(); b1.disabled=true; b2.style.display='none'; }
+      else if(k<=0){ b1.textContent='MAXED'; b1.disabled=true; b2.style.display='none'; }
+      else {
+        const cBP=bulkCost(d,lvl,k), cRP=bulkCost(d,lvl,k);
+        b1.textContent='BUY '+(k>1?k+'× ':'')+cBP.toFixed(k===5?1:0)+' BP';
+        b1.disabled=save.bp<cBP;
+        b1.onclick=()=>{ const mx2=maxFor(d,save.tier), lv2=effLvl(d.id), kk=bulkK(mx2,lv2); if(kk<=0) return;
+          const cc=bulkCost(d,lv2,kk); if(save.bp>=cc){ save.bp-=cc; save.ups[d.id]=(save.ups[d.id]||0)+kk; storeSave(save); refreshBank(); renderForge(); } };
+        b2.textContent='BUY '+(k>1?k+'× ':'')+cRP.toFixed(k===5?1:0)+' RP';
+        b2.disabled=save.rp<cRP;
+        b2.onclick=()=>{ const mx2=maxFor(d,save.tier), lv2=effLvl(d.id), kk=bulkK(mx2,lv2); if(kk<=0) return;
+          const cc=bulkCost(d,lv2,kk); if(save.rp>=cc){ save.rp-=cc; save.rpups[d.id]=(save.rpups[d.id]||0)+kk; storeSave(save); refreshBank(); renderForge(); } };
+      }
+      row.appendChild(b1); row.appendChild(b2); box.appendChild(row);
     });
   };
   const root=document.createElement('div'); root.className='treeroot';
@@ -152,17 +167,22 @@ function renderAdvs(){
 }
 function renderEternal(){
   const box=$('eternal'); if(!box) return;
-  const has=save.rebirths>0||(save.rb||0)>0||Object.keys(save.perm||{}).length>0;
-  if(!has){ box.innerHTML='<h3>ETERNAL · beat Tier 10 and REBIRTH to earn RB for upgrades that survive every reset.</h3>'; return; }
-  box.innerHTML='<h3>ETERNAL · '+save.rb.toFixed(0)+' RB · rebirths '+save.rebirths+' · permanent mass ×'+permMass(save).toFixed(2)+'</h3>';
+  const has=save.rebirths>0||(save.rp||0)>0||Object.keys(save.perm||{}).length>0;
+  if(!has){ box.innerHTML='<h3>ETERNAL · beat Tier 10 and REBIRTH to earn RP for upgrades that survive every reset.</h3>'; return; }
+  box.innerHTML='<h3>ETERNAL · '+save.rp.toFixed(0)+' RP · rebirths '+save.rebirths+' · permanent mass ×'+permMass(save).toFixed(2)+'</h3>';
   for(const d of PERM){
-    const lvl=save.perm[d.id]||0, cost=d.base*Math.pow(2.2,lvl);
+    const lvl=save.perm[d.id]||0, k=bulkK(d.max,lvl);
+    const fake={base:d.base};
     const div=document.createElement('div'); div.className='et';
     div.innerHTML='<span class="lv">'+lvl+'/'+d.max+'</span><h4>'+d.name+'</h4><p>'+d.desc+'</p>';
     const b=document.createElement('button');
-    b.textContent=lvl>=d.max?'MAXED':'BUY · '+cost.toFixed(0)+' RB';
-    b.disabled=lvl>=d.max||save.rb<cost;
-    b.onclick=()=>{ const c=d.base*Math.pow(2.2,save.perm[d.id]||0); if(save.rb>=c&&(save.perm[d.id]||0)<d.max){ save.rb-=c; save.perm[d.id]=(save.perm[d.id]||0)+1; storeSave(save); refreshBank(); renderForge(); } };
+    if(k<=0){ b.textContent='MAXED'; b.disabled=true; }
+    else { const cost=bulkCost(fake,lvl,k);
+      b.textContent='BUY '+(k>1?k+'× ':'')+cost.toFixed(k===5?1:0)+' RP';
+      b.disabled=save.rp<cost;
+      b.onclick=()=>{ const lv2=save.perm[d.id]||0, kk=bulkK(d.max,lv2); if(kk<=0) return;
+        const cc=bulkCost(fake,lv2,kk); if(save.rp>=cc){ save.rp-=cc; save.perm[d.id]=lv2+kk; storeSave(save); refreshBank(); renderForge(); } };
+    }
     div.appendChild(b); box.appendChild(div);
   }
 }
@@ -171,13 +191,13 @@ function drawLinks(){
   const tr=t.getBoundingClientRect(); svg.setAttribute('width',t.offsetWidth); svg.setAttribute('height',t.offsetHeight);
   let html='';
   for(const [child,parent] of Object.entries(PREREQ)){
-    if((save.ups[parent]||0)<=0) continue; // fogged: child still invisible
+    if(((save.ups[parent]||0)+(save.rpups[parent]||0))<=0) continue; // fogged: child still invisible
     const pe=t.querySelector('[data-id="'+parent+'"]'), ce=t.querySelector('[data-id="'+child+'"]');
     if(!pe||!ce) continue;
     const pr=pe.getBoundingClientRect(), cr=ce.getBoundingClientRect();
     const x1=pr.left+pr.width/2-tr.left, y1=pr.bottom-tr.top;
     const x2=cr.left+cr.width/2-tr.left, y2=cr.top-tr.top;
-    const open=(save.ups[parent]||0)>0;
+    const open=((save.ups[parent]||0)+(save.rpups[parent]||0))>0;
     const col=open?'rgba(57,230,255,.85)':'rgba(42,58,82,.9)';
     html+='<path class="'+(open?'open':'shut')+'" d="M'+x1+' '+y1+' C'+x1+' '+(y1+22)+','+x2+' '+(y2-22)+','+x2+' '+y2+'" stroke="'+col+'" stroke-width="2" fill="none"/>';
   }
@@ -185,7 +205,7 @@ function drawLinks(){
 }
 addEventListener('resize',()=>{ if(!$('forge').classList.contains('hidden')) drawLinks(); });
 function refreshBank(){
-  $('bankLine').textContent='Tier '+(save.tier||1)+'/10'+(save.cycles?' · Cycle '+save.cycles:'')+' · BP: '+save.bp.toFixed(2)+((save.rb||0)>0||save.rebirths>0?' · RB: '+save.rb.toFixed(0)+' (×'+save.rebirths+')':'')+' · Runs: '+save.totalRuns+' · Best: '+Math.round(save.best);
+  $('bankLine').textContent='Tier '+(save.tier||1)+'/10'+(save.cycles?' · Cycle '+save.cycles:'')+' · BP: '+save.bp.toFixed(2)+((save.rp||0)>0||save.rebirths>0?' · RP: '+save.rp.toFixed(0)+' (×'+save.rebirths+')':'')+' · Runs: '+save.totalRuns+' · Best: '+Math.round(save.best);
   const mt=$('menuTier'); if(mt) mt.textContent='TIER '+(save.tier||1)+'/10'+(save.rebirths>0?' · ∞'+save.rebirths:'')+' · '+save.bp.toFixed(1)+' BP';
 }
 
@@ -196,6 +216,11 @@ function show(el){ for(const s of [startEl,forgeEl,pauseEl,endEl,advEl]) if(s) s
 $('btnStart').onclick=()=>{ AU.initAudio(); AU.resume(); startRun(); };
 $('btnGo').onclick=()=>{ AU.initAudio(); AU.resume(); startRun(); };
 $('btnForge').onclick=()=>{ renderForge(); show(forgeEl); };
+let bulk=1;
+$('btnBulk').onclick=()=>{ bulk=bulk===1?5:1; renderForge(); };
+// bulk pricing: buy k=min(bulk,remaining); a full 5 costs 10% less than five singles
+function bulkK(mx,lvl){ const rem=mx-lvl; return rem<=0?0:Math.min(bulk,rem); }
+function bulkCost(def,lvl,k){ let s=0; for(let i=0;i<k;i++) s+=costOf(def,lvl+i); return k===5?s*0.9:s; }
 $('btnAdv').onclick=()=>{ renderAdvs(); show(advEl); };
 $('btnAdvBack').onclick=()=>{ show(startEl); refreshBank(); };
 $('btnAdvGo').onclick=()=>{ AU.initAudio(); AU.resume(); startRun(); };
@@ -205,11 +230,11 @@ $('btnAgain').onclick=()=>{ show(null); startRun(); };
 $('btnRebirth').onclick=()=>{ doRebirth(); };
 function doRebirth(){
   const gain=2+R.cycles;
-  save.rb=(save.rb||0)+gain; save.rebirths=(save.rebirths||0)+1;
+  save.rp=(save.rp||0)+gain; save.rebirths=(save.rebirths||0)+1;
   save.tier=1; save.cycles=0; save.ups={}; save.bp=0;
   unlockAdv('reborn');
   storeSave(save); refreshBank();
-  showToast('REBIRTH ×'+save.rebirths+' · +'+gain+' RB · permanent mass ×'+permMass(save).toFixed(2));
+  showToast('REBIRTH ×'+save.rebirths+' · +'+gain+' RP · permanent mass ×'+permMass(save).toFixed(2));
   newRun(); R.menu=true; R.paused=true; show(startEl);
 }
 function unlockAdv(id){
@@ -309,7 +334,7 @@ function endRun(reason){
   const rbGain=endless?(2+R.cycles):0;
   $('endTitle').textContent = win?(ascended?('TIER '+save.tier+' UNLOCKED'):(endless?'REBIRTH AVAILABLE':'SINGULARITY ACHIEVED')):(reason==='horizon'?'SPAGHETTIFIED':'TIME COLLAPSE');
   $('endFlavor').textContent = win?(ascended?('You drank the Tier '+R.tier+' hole. Tier '+save.tier+'/10 waits: a heavier hole, richer bodies, stronger upgrades.')
-    : endless?('REBIRTH: reset the ladder to Tier 1 (tiers, upgrades and BP wiped — RB and Eternal upgrades kept forever). Reward: +'+rbGain+' RB now, permanent mass multi rises to '+(1.1+0.1*(save.rebirths+1)).toFixed(2)+'x (base 1.1x, +0.1x per rebirth; more cycles banked = more RB). Spend RB on Eternal upgrades that persist through every rebirth.')
+    : endless?('REBIRTH: reset the ladder to Tier 1 (tiers, upgrades and BP wiped — RP and Eternal upgrades kept forever). Reward: +'+rbGain+' RP now, permanent mass multi rises to '+(1.1+0.1*(save.rebirths+1)).toFixed(2)+'x (base 1.1x, +0.1x per rebirth; more cycles banked = more RP). Spend RP on Eternal upgrades that persist through every rebirth.')
     :'You out-massed the hole and drank it in a relativistic shockwave.')
     : reason==='horizon'?'You crossed the event horizon while lighter than the hole.':'The doom clock hit zero with M ≤ B.';
   $('btnRebirth').classList.toggle('hidden',!endless);
@@ -398,9 +423,9 @@ function frame(now){
   R.nearEdge=(R.BR-rr)<350;
   R.p.M=R.M; R.p.r=5+Math.cbrt(R.M)*1.6;
   R.p.angle=Math.atan2(R.p.vy,R.p.vx);
-  // magnet: forgiving on mobile, classic tight reach on desktop
-  const magR=IS_TOUCH?Math.min(400,(18+R.p.r*1.6)*st.magnet*Math.pow(Math.max(1,R.M/10),0.14))
-    :Math.min(340,(14+R.p.r*1.4)*st.magnet*Math.pow(Math.max(1,R.M/10),0.14));
+  // magnet: forgiving on mobile, classic tight reach on desktop (caps lowered vs snowball)
+  const magR=IS_TOUCH?Math.min(300,(18+R.p.r*1.6)*st.magnet*Math.pow(Math.max(1,R.M/10),0.14))
+    :Math.min(260,(14+R.p.r*1.4)*st.magnet*Math.pow(Math.max(1,R.M/10),0.14));
   for(let i=R.bodies.length-1;i>=0;i--){
     const b=R.bodies[i];
     // drift bodies on rails
@@ -409,7 +434,7 @@ function frame(now){
     // roche siphon: shrink bigger bodies nearby
     if(st.roche>0&&b.mass>R.M&&b.mass<=R.M*1.25){
       const d=Math.hypot(b.x-R.p.x,b.y-R.p.y);
-      if(d<140+st.roche*25){ const strip=Math.min(b.mass*(0.35+st.roche*0.15)*dt,(R.M*0.02+1)*(1+st.roche*0.2)); b.mass-=strip; R.M+=strip; R.siphoned+=strip; b.r=5+Math.cbrt(Math.max(1,b.mass))*2.1; }
+      if(d<140+st.roche*25){ const strip=Math.min(b.mass*(0.35+st.roche*0.15)*dt,(R.M*0.02+1)*(1+st.roche*0.2)); b.mass-=strip; R.M+=strip; R.siphoned+=strip; b.r=4+Math.cbrt(Math.max(1,b.mass))*1.5; }
     }
     const d=Math.hypot(b.x-R.p.x,b.y-R.p.y);
     if(d<magR&&b.mass<R.M&&d>1){ // gentle velocity pull: meteors curve in, never snap
@@ -417,8 +442,10 @@ function frame(now){
       b.vx+=((R.p.x-b.x)/d)*pull; b.vy+=((R.p.y-b.y)/d)*pull;
     }
     if(d<R.p.r+b.r){
-      if(b.mass<R.M){ // eat
-        const gain=b.mass*st.gain*(0.9+0.2*Math.random());
+      if(b.mass<R.M){ // eat (mega/shiny gains nerfed: no skipping the endgame)
+        let gmult=1;
+        if(b.mega) gmult=0.3; else if(b.shiny==='diamond') gmult=0.1; else if(b.shiny==='gold') gmult=0.5;
+        const gain=b.mass*st.gain*(0.9+0.2*Math.random())*gmult;
         R.M+=gain; R.nabbed++; R.combo=Math.min(5,R.combo+0.12); R.comboT=4;
         AU.crunch(b.mass); popup('+'+Math.round(gain),b.x,b.y);
         // feeding burst: tier-colored particles, gold for MEGAs
@@ -461,8 +488,8 @@ function frame(now){
   R.stretch=r<R.Rs*1.6*st.hull?Math.min(1,(R.Rs*1.6*st.hull-r)/(R.Rs*0.6)):0;
   // trail
   R.trail.push({x:R.p.x,y:R.p.y}); if(R.trail.length>40)R.trail.shift();
-  // camera: stay zoomed on the character, track tightly
-  const tz=Math.max(0.35,Math.min(2.2,900/Math.max(360,r*1.1)));
+  // camera: tight on the character early, pulls back as you grow huge
+  const tz=Math.max(0.12,Math.min(2.2,900/Math.max(360,r*1.1,R.p.r*14)));
   R.cam.z+=(tz-R.cam.z)*dt*2.5;
   const cf=IS_TOUCH?1:0.95;
   R.cam.x+=(R.p.x*cf-R.cam.x)*dt*4; R.cam.y+=(R.p.y*cf-R.cam.y)*dt*4;

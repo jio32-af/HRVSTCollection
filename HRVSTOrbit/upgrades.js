@@ -39,13 +39,18 @@ export function tierInfo(tier){
   };
 }
 export function maxFor(def, tier){ return def.max + (Math.max(1, tier || 1) - 1); }
-export function defaultSave(){ return {bp:0, rb:0, rebirths:0, perm:{}, adv:{}, totalRuns:0, best:10, tier:1, cycles:0, ups:{}, muted:false, vol:0.6}; }
+export function defaultSave(){ return {bp:0, rp:0, rebirths:0, perm:{}, adv:{}, totalRuns:0, best:10, tier:1, cycles:0, ups:{}, rpups:{}, muted:false, vol:0.6}; }
 const KEY='blackhole_save_v1';
 export function loadSave(){
   try{ const raw=localStorage.getItem(KEY); if(!raw) return defaultSave();
     const s=Object.assign(defaultSave(), JSON.parse(raw));
-    if(typeof s.bp!=='number'&&typeof s.rp==='number') s.bp=s.rp; // RP→BP migration
-    delete s.rp; s.ups=s.ups||{}; s.perm=s.perm||{}; s.adv=s.adv||{};
+    if(typeof s.bp!=='number'){ // ancient pre-BP save: main currency was called RP
+      if(typeof s.rp==='number'&&typeof s.rb!=='number'){ s.bp=s.rp; s.rp=0; }
+      else s.bp=0;
+    }
+    if(typeof s.rb==='number'){ s.rp=s.rb; delete s.rb; } // legacy RB → RP
+    if(typeof s.rp!=='number') s.rp=0;
+    s.ups=s.ups||{}; s.rpups=s.rpups||{}; s.perm=s.perm||{}; s.adv=s.adv||{};
     return s;
   }catch(e){ return defaultSave(); }
 }
@@ -54,12 +59,17 @@ export function showSaveWarn(){ const w=document.getElementById('warn'); if(w) w
 export function exportStr(s){ return btoa(unescape(encodeURIComponent(JSON.stringify(s)))); }
 export function importStr(str){
   const s=Object.assign(defaultSave(), JSON.parse(decodeURIComponent(escape(atob(str.trim())))));
-  if(typeof s.bp!=='number'&&typeof s.rp!=='number') throw new Error('bad save');
-  if(typeof s.bp!=='number') s.bp=s.rp; delete s.rp;
-  s.ups=s.ups||{}; s.perm=s.perm||{}; s.adv=s.adv||{}; return s;
+  if(typeof s.bp!=='number'&&typeof s.rp!=='number'&&typeof s.rb!=='number') throw new Error('bad save');
+  if(typeof s.bp!=='number'){
+    if(typeof s.rp==='number'&&typeof s.rb!=='number'){ s.bp=s.rp; s.rp=0; }
+    else s.bp=0;
+  }
+  if(typeof s.rb==='number'){ s.rp=s.rb; delete s.rb; }
+  if(typeof s.rp!=='number') s.rp=0;
+  s.ups=s.ups||{}; s.rpups=s.rpups||{}; s.perm=s.perm||{}; s.adv=s.adv||{}; return s;
 }
 // Derived stats from levels + ladder tier:
-// Permanent (RB) upgrades: survive every rebirth.
+// Permanent (RP) upgrades: survive every rebirth.
 export const PERM=[
  {id:'emass', name:'Eternal Core', max:20, base:2, desc:'+10% mass & gains, forever.'},
  {id:'egreed', name:'Eternal Greed', max:20, base:2, desc:'+10% blackhole points, forever.'},
@@ -82,7 +92,7 @@ export const ADV=[
  {id:'reborn', name:'Born Again', desc:'Rebirth once.'},
 ];
 export function stats(save){
-  const L=id=>save.ups[id]||0;
+  const L=id=>(save.ups[id]||0)+(save.rpups[id]||0); // BP levels reset on rebirth; RP levels are permanent
   const P=id=>(save.perm||{})[id]||0;
   const mob=(typeof document!=='undefined')&&document.body.classList.contains('touch');
   const ti=tierInfo(save.tier);
