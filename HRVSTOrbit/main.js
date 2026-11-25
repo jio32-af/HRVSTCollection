@@ -1,12 +1,13 @@
-import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=28';
-import {drawWorld, makeStars, tierTheme} from './renderer.js?v=28';
-import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=28';
-import * as AU from './audio.js?v=28';
+import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=29';
+import {drawWorld, makeStars, tierTheme} from './renderer.js?v=29';
+import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=29';
+import * as AU from './audio.js?v=29';
 
 const cv=document.getElementById('game'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
-const IS_TOUCH=('ontouchstart' in window);
-const DMAX=IS_TOUCH?1.5:2; // mobile renders lighter; desktop keeps full fidelity
+const IS_TOUCH=('ontouchstart' in window)||navigator.maxTouchPoints>0;
+const DMAX=IS_TOUCH?1.2:2; // tablets/phones render lighter; desktop keeps full fidelity
+const BODY_CAP=IS_TOUCH?140:220, BODY_FLOW=IS_TOUCH?130:200;
 const hud=$('hud'),startEl=$('start'),forgeEl=$('forge'),pauseEl=$('pause'),endEl=$('end'),advEl=$('adv');
 
 let save=loadSave();
@@ -33,7 +34,7 @@ function newRun(){
   const craters=[]; for(let k=0;k<4;k++) craters.push({a:Math.random()*6.28,s:0.7+Math.random()*0.7});
   R={t:0, dur:st.clock, M:M0, B:B0, B0, Bwin:Bwin0, winF, st,
     p:{x:r0,y:0,vx:0,vy:-v,r:9,M:M0,angle:0,mesh,craters},
-    bodies:[], cam:{x:r0*0.6,y:0,z:1}, time:0,
+    bodies:[], cam:{x:r0,y:0,z:1}, time:0, // camera starts glued to the ship
     trail:[], moon:null, moonA:0, spawnT:0, combo:1, comboT:0, popups:[],
     nabbed:0, siphoned:0, peak: M0, shakeT:0, over:false,
     starsFar:makeStars(420,12345), starsNear:makeStars(200,999),
@@ -42,7 +43,7 @@ function newRun(){
     showPings:st.predSecs>3.4,
     predict:[], fuel:1 };
   if(st.twin>0) R.moon={x:r0+40,y:0};
-  for(let i=0;i<48;i++) spawnBody(true);
+  for(let i=0;i<(IS_TOUCH?36:48);i++) spawnBody(true);
   return R;
 }
 function bodyTier(m, pm){
@@ -58,7 +59,7 @@ function spawnBody(any=false){
     const mmass=Math.max(50,25*Math.pow(1.022,R.t)*3)*R.bodyMult;
     const mvo=circularOrbitVel(Math.max(200,mrr),R.B)*0.6*R.speedMult;
     R.bodies.push({x:mx,y:my,vx:-Math.sin(a)*mvo,vy:Math.cos(a)*mvo,mass:mmass,r:6+Math.cbrt(mmass)*1.7,tier:5,rot:0,seed:Math.random()*10,mega:true});
-    if(R.bodies.length>220) R.bodies.splice(0,R.bodies.length-220);
+    if(R.bodies.length>BODY_CAP) R.bodies.splice(0,R.bodies.length-220);
     return;
   }
   const rr=260+Math.random()*900;
@@ -79,7 +80,7 @@ function spawnBody(any=false){
   const tier=bodyTier(mass,R.M);
   const vo=circularOrbitVel(Math.max(200,Math.hypot(x,y)),R.B)*(0.85+Math.random()*0.3)*R.speedMult;
   R.bodies.push({x,y,vx:-Math.sin(a)*vo,vy:Math.cos(a)*vo,mass:m2,r:4+Math.cbrt(Math.max(1,m2))*1.5,tier,rot:Math.random()*6.28,seed:Math.random()*10,moon:tier===3&&Math.random()<0.5,shiny});
-  if(R.bodies.length>220) R.bodies.splice(0,R.bodies.length-220);
+  if(R.bodies.length>BODY_CAP) R.bodies.splice(0,R.bodies.length-220);
 }
 
 // ---------- UI: forge ----------
@@ -119,7 +120,7 @@ function renderForge(){
     const pre=PREREQ[d.id]||null, open=isOpen(d.id);
     const mx=maxFor(d,save.tier), lvl=effLvl(d.id), bl=save.ups[d.id]||0, rl=save.rpups[d.id]||0;
     const k=bulkK(mx,lvl);
-    import('./upgrades.js?v=28').then(m=>{
+    import('./upgrades.js?v=29').then(m=>{
       box.innerHTML='<h4>'+d.name+' <span class="lv">'+lvl+'/'+mx+'</span></h4>'+
         '<p>'+d.desc+'</p><div class="tip">'+m.nextTip(d,lvl,mx,save.tier)+'</div>'+
         '<div class="lvrow">BP lv '+bl+' (resets) · RP lv '+rl+' (permanent)</div>';
@@ -507,8 +508,8 @@ function frame(now){
   // camera: tight on the character early, pulls back as you grow huge
   const tz=Math.max(0.12,Math.min(2.2,900/Math.max(360,r*1.1,R.p.r*14)));
   R.cam.z+=(tz-R.cam.z)*dt*2.5;
-  const cf=IS_TOUCH?1:0.95;
-  R.cam.x+=(R.p.x*cf-R.cam.x)*dt*4; R.cam.y+=(R.p.y*cf-R.cam.y)*dt*4;
+  const cf=IS_TOUCH?1:0.95, crate=IS_TOUCH?7:4;
+  R.cam.x+=(R.p.x*cf-R.cam.x)*dt*crate; R.cam.y+=(R.p.y*cf-R.cam.y)*dt*crate;
   if(shake>0)shake-=dt*30;
   // predictor
   R.predict=predictPath(R.p,R.B,st.predSecs,42);
@@ -521,7 +522,7 @@ function frame(now){
   const effRs=R.Rs*st.hull;
   if(r<=effRs&&R.M<=R.Bwin){ endRun('horizon'); return; }
   if(R.t>=R.dur){ endRun(R.M>R.Bwin?'win':'timeout'); return; }
-  if(Math.random()<dt*3.5&&R.bodies.length<200) spawnBody();
+  if(Math.random()<dt*3.5&&R.bodies.length<BODY_FLOW) spawnBody();
   render(dt);
 }
 function updateHUD(){

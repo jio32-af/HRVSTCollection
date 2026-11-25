@@ -46,7 +46,7 @@ export function drawWorld(ctx, S){
   ctx.save(); ctx.globalCompositeOperation='lighter';
   const nebs=nebFor(th);
   for(let ni=0;ni<nebs.length;ni++){ const nb=nebs[ni];
-    if(S.touch&&(ni%3===2)) continue; // mobile skips every third cloud
+    if(S.touch&&(ni%3!==0)) continue; // tablets draw ~1/3 of the clouds
     const bx2=(nb.x*0.12-cam.x*0.12)*cam.z+W/2+Math.cos(S.time*nb.sp+nb.ph)*30;
     const by2=(nb.y*0.12-cam.y*0.12)*cam.z+H/2+Math.sin(S.time*nb.sp+nb.ph)*30;
     if(bx2<-700||by2<-700||bx2>W+700||by2>H+700) continue;
@@ -248,7 +248,7 @@ function drawBody(ctx,b,sx,sy,r,S){
   // nav-computer edge ping for high-value metals
   if(S.showPings&&((b.tier===2||b.tier===5)||b.shiny)&&edible){
     ctx.fillStyle=b.shiny==='diamond'?'#d8fbff':(b.shiny==='gold'?'#ffd34d':(b.tier===5?'#ffe9a8':'#ffd166')); ctx.font='11px sans-serif';
-    const dpr=S.touch?Math.min(1.5,devicePixelRatio||1):Math.min(2,devicePixelRatio||1);
+    const dpr=S.touch?Math.min(1.2,devicePixelRatio||1):Math.min(2,devicePixelRatio||1);
     const cx=Math.max(14,Math.min(ctx.canvas.width/dpr-90,sx)), cy=b.y<S.p.y?26:ctx.canvas.height/dpr-26;
     ctx.fillText(b.shiny==='diamond'?('◈ DIAMOND ×100'):b.shiny==='gold'?('◈ GOLD ×10'):(b.tier===5?('◈ MEGA '+Math.round(b.mass)):('◈ Fe '+Math.round(b.mass))),cx,cy);
   }
