@@ -222,7 +222,7 @@ $('btnBulk').onclick=()=>{ bulk=bulk===1?5:1; renderForge(); };
 // bulk pricing: buy k=min(bulk,remaining); a full 5 costs 10% less than five singles
 function bulkK(mx,lvl){ const rem=mx-lvl; return rem<=0?0:Math.min(bulk,rem); }
 function bulkCost(def,lvl,k){ let s=0; for(let i=0;i<k;i++) s+=costOf(def,lvl+i); return k===5?s*0.9:s; }
-// RP purchases share the unified 1.50 curve with BP
+// RP purchases share the unified 1.20 curve with BP
 function rpCost(def,lvl,k){ let s=0; for(let i=0;i<k;i++) s+=Math.ceil(def.base*Math.pow(1.20,lvl+i)); return k===5?s*0.9:s; }
 $('btnAdv').onclick=()=>{ renderAdvs(); show(advEl); };
 $('btnAdvBack').onclick=()=>{ show(startEl); refreshBank(); };
