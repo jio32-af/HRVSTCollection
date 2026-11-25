@@ -1,7 +1,7 @@
-import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=23';
-import {drawWorld, makeStars, tierTheme} from './renderer.js?v=23';
-import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=23';
-import * as AU from './audio.js?v=23';
+import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=24';
+import {drawWorld, makeStars, tierTheme} from './renderer.js?v=24';
+import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=24';
+import * as AU from './audio.js?v=24';
 
 const cv=document.getElementById('game'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -119,7 +119,7 @@ function renderForge(){
     const pre=PREREQ[d.id]||null, open=isOpen(d.id);
     const mx=maxFor(d,save.tier), lvl=effLvl(d.id), bl=save.ups[d.id]||0, rl=save.rpups[d.id]||0;
     const k=bulkK(mx,lvl);
-    import('./upgrades.js?v=23').then(m=>{
+    import('./upgrades.js?v=24').then(m=>{
       box.innerHTML='<h4>'+d.name+' <span class="lv">'+lvl+'/'+mx+'</span></h4>'+
         '<p>'+d.desc+'</p><div class="tip">'+m.nextTip(d,lvl,mx,save.tier)+'</div>'+
         '<div class="lvrow">BP lv '+bl+' (resets) · RP lv '+rl+' (permanent)</div>';

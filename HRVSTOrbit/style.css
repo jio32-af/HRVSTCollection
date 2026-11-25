@@ -60,7 +60,7 @@ h2{font-size:30px;letter-spacing:.1em}
 .up.node{position:relative;margin-bottom:10px;background:rgba(11,20,36,.92)}
 .up.node.locked{opacity:.6}
 .tnode.locked{opacity:.55}
-.tnode.afford{border-color:#7fd0ff;box-shadow:0 0 16px rgba(127,208,255,.6)}
+.tnode.afford{border-color:#c07bff;box-shadow:0 0 16px rgba(192,123,255,.65)}
 .tnode{width:58px;height:58px;border-radius:50%;border:2px solid #2a3a52;background:#0b1424;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;margin:13px auto;transition:border-color .15s,box-shadow .15s}
 .tnode:hover{border-color:#39e6ff}
 .tnode .dot{font-weight:800;font-size:15px;letter-spacing:.05em}
