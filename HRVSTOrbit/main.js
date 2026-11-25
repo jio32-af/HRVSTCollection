@@ -1,7 +1,7 @@
-import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=24';
-import {drawWorld, makeStars, tierTheme} from './renderer.js?v=24';
-import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=24';
-import * as AU from './audio.js?v=24';
+import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=25';
+import {drawWorld, makeStars, tierTheme} from './renderer.js?v=25';
+import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=25';
+import * as AU from './audio.js?v=25';
 
 const cv=document.getElementById('game'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -55,7 +55,7 @@ function spawnBody(any=false){
   if(!any&&Math.random()<0.045&&R.t>20){
     const mrr=260+Math.random()*220;
     const mx=Math.cos(a)*mrr, my=Math.sin(a)*mrr;
-    const mmass=Math.max(50,10*Math.pow(1.022,R.t)*3)*R.bodyMult;
+    const mmass=Math.max(50,25*Math.pow(1.022,R.t)*3)*R.bodyMult;
     const mvo=circularOrbitVel(Math.max(200,mrr),R.B)*0.6*R.speedMult;
     R.bodies.push({x:mx,y:my,vx:-Math.sin(a)*mvo,vy:Math.cos(a)*mvo,mass:mmass,r:6+Math.cbrt(mmass)*1.7,tier:5,rot:0,seed:Math.random()*10,mega:true});
     if(R.bodies.length>220) R.bodies.splice(0,R.bodies.length-220);
@@ -69,7 +69,7 @@ function spawnBody(any=false){
   if(!late) mult = roll<0.45?0.1+Math.random()*0.4 : roll<0.8?0.5+Math.random()*0.45 : roll<0.94?0.8+Math.random()*0.4 : 1.5+Math.random()*3;
   else mult = roll<0.25?0.1+Math.random()*0.4 : roll<0.5?0.5+Math.random()*0.45 : roll<0.7?0.8+Math.random()*0.4 : roll<0.88?1.5+Math.random()*3 : 3+Math.random()*6;
   // spawns scale ONLY with run time — never with player mass (no endgame snowball)
-  const timeScale=10*Math.pow(1.022,R.t); // ~10 → ~6,800 over 5 mins
+  const timeScale=25*Math.pow(1.022,R.t); // ~25 → ~17,000 over 5 mins
   const mass=Math.max(0.5,timeScale*mult);
   // shinies: 1% gold (10x), 0.1% diamond (100x) — tier judged on base mass, jackpot stays edible
   const su=Math.random();
@@ -119,7 +119,7 @@ function renderForge(){
     const pre=PREREQ[d.id]||null, open=isOpen(d.id);
     const mx=maxFor(d,save.tier), lvl=effLvl(d.id), bl=save.ups[d.id]||0, rl=save.rpups[d.id]||0;
     const k=bulkK(mx,lvl);
-    import('./upgrades.js?v=24').then(m=>{
+    import('./upgrades.js?v=25').then(m=>{
       box.innerHTML='<h4>'+d.name+' <span class="lv">'+lvl+'/'+mx+'</span></h4>'+
         '<p>'+d.desc+'</p><div class="tip">'+m.nextTip(d,lvl,mx,save.tier)+'</div>'+
         '<div class="lvrow">BP lv '+bl+' (resets) · RP lv '+rl+' (permanent)</div>';
