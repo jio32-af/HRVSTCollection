@@ -60,12 +60,13 @@ h2{font-size:30px;letter-spacing:.1em}
 .up.node{position:relative;margin-bottom:10px;background:rgba(11,20,36,.92)}
 .up.node.locked{opacity:.6}
 .tnode.locked{opacity:.55}
-.tnode.afford{border-color:#c07bff;box-shadow:0 0 16px rgba(192,123,255,.65)}
+.tnode.afford{border-color:#7fd0ff;box-shadow:0 0 16px rgba(127,208,255,.65)}
 .tnode{width:58px;height:58px;border-radius:50%;border:2px solid #2a3a52;background:#0b1424;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;margin:13px auto;transition:border-color .15s,box-shadow .15s}
 .tnode:hover{border-color:#39e6ff}
 .tnode .dot{font-weight:800;font-size:15px;letter-spacing:.05em}
 .tnode .nlv{font-size:10px;opacity:.75;font-variant-numeric:tabular-nums}
-.tnode.owned{border-color:#39e6ff;box-shadow:0 0 12px rgba(57,230,255,.45)}
+.tnode.bought{border-color:#39e6ff;position:relative}
+.tnode.bought::after{content:'';position:absolute;inset:-9px;border:2px solid #c07bff;border-radius:50%;box-shadow:0 0 12px rgba(192,123,255,.65);pointer-events:none}
 .tnode.maxed{border-color:#34f5a5;box-shadow:0 0 14px rgba(52,245,165,.5)}
 .tnode.rp{border-color:#ffd34d;box-shadow:0 0 14px rgba(255,211,77,.55)}
 .tnode .rlv{font-size:10px;color:#ffd34d;font-weight:800}
