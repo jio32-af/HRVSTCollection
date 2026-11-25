@@ -1,7 +1,7 @@
-import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=20';
-import {drawWorld, makeStars, tierTheme} from './renderer.js?v=20';
-import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=20';
-import * as AU from './audio.js?v=20';
+import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=21';
+import {drawWorld, makeStars, tierTheme} from './renderer.js?v=21';
+import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=21';
+import * as AU from './audio.js?v=21';
 
 const cv=document.getElementById('game'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -117,7 +117,7 @@ function renderForge(){
     const pre=PREREQ[d.id]||null, open=isOpen(d.id);
     const mx=maxFor(d,save.tier), lvl=effLvl(d.id), bl=save.ups[d.id]||0, rl=save.rpups[d.id]||0;
     const k=bulkK(mx,lvl);
-    import('./upgrades.js?v=20').then(m=>{
+    import('./upgrades.js?v=21').then(m=>{
       box.innerHTML='<h4>'+d.name+' <span class="lv">'+lvl+'/'+mx+'</span></h4>'+
         '<p>'+d.desc+'</p><div class="tip">'+m.nextTip(d,lvl,mx,save.tier)+'</div>'+
         '<div class="lvrow">BP lv '+bl+' (resets) · RP lv '+rl+' (permanent)</div>';
@@ -126,7 +126,7 @@ function renderForge(){
       if(!open){ b1.textContent='NEEDS '+byId[pre].name.toUpperCase(); b1.disabled=true; b2.style.display='none'; }
       else if(k<=0){ b1.textContent='MAXED'; b1.disabled=true; b2.style.display='none'; }
       else {
-        const cBP=bulkCost(d,lvl,k), cRP=bulkCost(d,lvl,k);
+        const cBP=bulkCost(d,lvl,k), cRP=rpCost(d,lvl,k);
         b1.textContent='BUY '+(k>1?k+'× ':'')+cBP.toFixed(k===5?1:0)+' BP';
         b1.disabled=save.bp<cBP;
         b1.onclick=()=>{ const mx2=maxFor(d,save.tier), lv2=effLvl(d.id), kk=bulkK(mx2,lv2); if(kk<=0) return;
@@ -134,7 +134,7 @@ function renderForge(){
         b2.textContent='BUY '+(k>1?k+'× ':'')+cRP.toFixed(k===5?1:0)+' RP';
         b2.disabled=save.rp<cRP;
         b2.onclick=()=>{ const mx2=maxFor(d,save.tier), lv2=effLvl(d.id), kk=bulkK(mx2,lv2); if(kk<=0) return;
-          const cc=bulkCost(d,lv2,kk); if(save.rp>=cc){ save.rp-=cc; save.rpups[d.id]=(save.rpups[d.id]||0)+kk; storeSave(save); refreshBank(); renderForge(); } };
+          const cc=rpCost(d,lv2,kk); if(save.rp>=cc){ save.rp-=cc; save.rpups[d.id]=(save.rpups[d.id]||0)+kk; storeSave(save); refreshBank(); renderForge(); } };
       }
       row.appendChild(b1); row.appendChild(b2); box.appendChild(row);
     });
@@ -177,11 +177,11 @@ function renderEternal(){
     div.innerHTML='<span class="lv">'+lvl+'/'+d.max+'</span><h4>'+d.name+'</h4><p>'+d.desc+'</p>';
     const b=document.createElement('button');
     if(k<=0){ b.textContent='MAXED'; b.disabled=true; }
-    else { const cost=bulkCost(fake,lvl,k);
+    else { const cost=rpCost(fake,lvl,k);
       b.textContent='BUY '+(k>1?k+'× ':'')+cost.toFixed(k===5?1:0)+' RP';
       b.disabled=save.rp<cost;
       b.onclick=()=>{ const lv2=save.perm[d.id]||0, kk=bulkK(d.max,lv2); if(kk<=0) return;
-        const cc=bulkCost(fake,lv2,kk); if(save.rp>=cc){ save.rp-=cc; save.perm[d.id]=lv2+kk; storeSave(save); refreshBank(); renderForge(); } };
+        const cc=rpCost(fake,lv2,kk); if(save.rp>=cc){ save.rp-=cc; save.perm[d.id]=lv2+kk; storeSave(save); refreshBank(); renderForge(); } };
     }
     div.appendChild(b); box.appendChild(div);
   }
@@ -221,6 +221,8 @@ $('btnBulk').onclick=()=>{ bulk=bulk===1?5:1; renderForge(); };
 // bulk pricing: buy k=min(bulk,remaining); a full 5 costs 10% less than five singles
 function bulkK(mx,lvl){ const rem=mx-lvl; return rem<=0?0:Math.min(bulk,rem); }
 function bulkCost(def,lvl,k){ let s=0; for(let i=0;i<k;i++) s+=costOf(def,lvl+i); return k===5?s*0.9:s; }
+// RP purchases ride a gentler 1.35 curve so permanent levels stay achievable
+function rpCost(def,lvl,k){ let s=0; for(let i=0;i<k;i++) s+=Math.ceil(def.base*Math.pow(1.35,lvl+i)); return k===5?s*0.9:s; }
 $('btnAdv').onclick=()=>{ renderAdvs(); show(advEl); };
 $('btnAdvBack').onclick=()=>{ show(startEl); refreshBank(); };
 $('btnAdvGo').onclick=()=>{ AU.initAudio(); AU.resume(); startRun(); };
@@ -229,7 +231,7 @@ $('btnBack').onclick=()=>{ newRun(); R.menu=true; R.paused=true; show(startEl); 
 $('btnAgain').onclick=()=>{ show(null); startRun(); };
 $('btnRebirth').onclick=()=>{ doRebirth(); };
 function doRebirth(){
-  const gain=2+R.cycles;
+  const gain=Math.round((2+R.cycles+Math.max(0,R.tier-5))*(1+0.5*(save.rebirths||0)));
   save.rp=(save.rp||0)+gain; save.rebirths=(save.rebirths||0)+1;
   save.tier=1; save.cycles=0; save.ups={}; save.bp=0;
   unlockAdv('reborn');
@@ -331,7 +333,7 @@ function endRun(reason){
     if(save.tier>=10||R.tier>=10) unlockAdv('t10');
   }
   storeSave(save); refreshBank();
-  const rbGain=endless?(2+R.cycles):0;
+  const rbGain=endless?Math.round((2+R.cycles+Math.max(0,R.tier-5))*(1+0.5*(save.rebirths||0))):0;
   $('endTitle').textContent = win?(ascended?('TIER '+save.tier+' UNLOCKED'):(endless?'REBIRTH AVAILABLE':'SINGULARITY ACHIEVED')):(reason==='horizon'?'SPAGHETTIFIED':'TIME COLLAPSE');
   $('endFlavor').textContent = win?(ascended?('You drank the Tier '+R.tier+' hole. Tier '+save.tier+'/10 waits: a heavier hole, richer bodies, stronger upgrades.')
     : endless?('REBIRTH: reset the ladder to Tier 1 (tiers, upgrades and BP wiped — RP and Eternal upgrades kept forever). Reward: +'+rbGain+' RP now, permanent mass multi rises to '+(1.1+0.1*(save.rebirths+1)).toFixed(2)+'x (base 1.1x, +0.1x per rebirth; more cycles banked = more RP). Spend RP on Eternal upgrades that persist through every rebirth.')
