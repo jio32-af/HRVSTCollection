@@ -1,7 +1,7 @@
-import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=21';
-import {drawWorld, makeStars, tierTheme} from './renderer.js?v=21';
-import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=21';
-import * as AU from './audio.js?v=21';
+import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=22';
+import {drawWorld, makeStars, tierTheme} from './renderer.js?v=22';
+import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=22';
+import * as AU from './audio.js?v=22';
 
 const cv=document.getElementById('game'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -117,7 +117,7 @@ function renderForge(){
     const pre=PREREQ[d.id]||null, open=isOpen(d.id);
     const mx=maxFor(d,save.tier), lvl=effLvl(d.id), bl=save.ups[d.id]||0, rl=save.rpups[d.id]||0;
     const k=bulkK(mx,lvl);
-    import('./upgrades.js?v=21').then(m=>{
+    import('./upgrades.js?v=22').then(m=>{
       box.innerHTML='<h4>'+d.name+' <span class="lv">'+lvl+'/'+mx+'</span></h4>'+
         '<p>'+d.desc+'</p><div class="tip">'+m.nextTip(d,lvl,mx,save.tier)+'</div>'+
         '<div class="lvrow">BP lv '+bl+' (resets) · RP lv '+rl+' (permanent)</div>';
@@ -222,7 +222,7 @@ $('btnBulk').onclick=()=>{ bulk=bulk===1?5:1; renderForge(); };
 function bulkK(mx,lvl){ const rem=mx-lvl; return rem<=0?0:Math.min(bulk,rem); }
 function bulkCost(def,lvl,k){ let s=0; for(let i=0;i<k;i++) s+=costOf(def,lvl+i); return k===5?s*0.9:s; }
 // RP purchases ride a gentler 1.35 curve so permanent levels stay achievable
-function rpCost(def,lvl,k){ let s=0; for(let i=0;i<k;i++) s+=Math.ceil(def.base*Math.pow(1.35,lvl+i)); return k===5?s*0.9:s; }
+function rpCost(def,lvl,k){ let s=0; for(let i=0;i<k;i++) s+=Math.ceil(def.base*Math.pow(1.50,lvl+i)); return k===5?s*0.9:s; }
 $('btnAdv').onclick=()=>{ renderAdvs(); show(advEl); };
 $('btnAdvBack').onclick=()=>{ show(startEl); refreshBank(); };
 $('btnAdvGo').onclick=()=>{ AU.initAudio(); AU.resume(); startRun(); };
@@ -231,7 +231,7 @@ $('btnBack').onclick=()=>{ newRun(); R.menu=true; R.paused=true; show(startEl); 
 $('btnAgain').onclick=()=>{ show(null); startRun(); };
 $('btnRebirth').onclick=()=>{ doRebirth(); };
 function doRebirth(){
-  const gain=Math.round((2+R.cycles+Math.max(0,R.tier-5))*(1+0.5*(save.rebirths||0)));
+  const gain=Math.round((2+R.cycles)*(1+0.5*(save.rebirths||0)));
   save.rp=(save.rp||0)+gain; save.rebirths=(save.rebirths||0)+1;
   save.tier=1; save.cycles=0; save.ups={}; save.bp=0;
   unlockAdv('reborn');
@@ -333,7 +333,7 @@ function endRun(reason){
     if(save.tier>=10||R.tier>=10) unlockAdv('t10');
   }
   storeSave(save); refreshBank();
-  const rbGain=endless?Math.round((2+R.cycles+Math.max(0,R.tier-5))*(1+0.5*(save.rebirths||0))):0;
+  const rbGain=endless?Math.round((2+R.cycles)*(1+0.5*(save.rebirths||0))):0;
   $('endTitle').textContent = win?(ascended?('TIER '+save.tier+' UNLOCKED'):(endless?'REBIRTH AVAILABLE':'SINGULARITY ACHIEVED')):(reason==='horizon'?'SPAGHETTIFIED':'TIME COLLAPSE');
   $('endFlavor').textContent = win?(ascended?('You drank the Tier '+R.tier+' hole. Tier '+save.tier+'/10 waits: a heavier hole, richer bodies, stronger upgrades.')
     : endless?('REBIRTH: reset the ladder to Tier 1 (tiers, upgrades and BP wiped — RP and Eternal upgrades kept forever). Reward: +'+rbGain+' RP now, permanent mass multi rises to '+(1.1+0.1*(save.rebirths+1)).toFixed(2)+'x (base 1.1x, +0.1x per rebirth; more cycles banked = more RP). Spend RP on Eternal upgrades that persist through every rebirth.')
