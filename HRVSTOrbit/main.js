@@ -1,7 +1,7 @@
-import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=27';
-import {drawWorld, makeStars, tierTheme} from './renderer.js?v=27';
-import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=27';
-import * as AU from './audio.js?v=27';
+import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=28';
+import {drawWorld, makeStars, tierTheme} from './renderer.js?v=28';
+import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=28';
+import * as AU from './audio.js?v=28';
 
 const cv=document.getElementById('game'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -119,7 +119,7 @@ function renderForge(){
     const pre=PREREQ[d.id]||null, open=isOpen(d.id);
     const mx=maxFor(d,save.tier), lvl=effLvl(d.id), bl=save.ups[d.id]||0, rl=save.rpups[d.id]||0;
     const k=bulkK(mx,lvl);
-    import('./upgrades.js?v=27').then(m=>{
+    import('./upgrades.js?v=28').then(m=>{
       box.innerHTML='<h4>'+d.name+' <span class="lv">'+lvl+'/'+mx+'</span></h4>'+
         '<p>'+d.desc+'</p><div class="tip">'+m.nextTip(d,lvl,mx,save.tier)+'</div>'+
         '<div class="lvrow">BP lv '+bl+' (resets) · RP lv '+rl+' (permanent)</div>';
@@ -219,6 +219,19 @@ $('btnGo').onclick=()=>{ AU.initAudio(); AU.resume(); startRun(); };
 $('btnForge').onclick=()=>{ renderForge(); show(forgeEl); };
 let bulk=1;
 $('btnBulk').onclick=()=>{ bulk=bulk===1?5:1; renderForge(); };
+$('btnRefundRP').onclick=()=>{
+  let total=0, n=0;
+  for(const d of UPS){ const l=save.rpups[d.id]||0; if(l<=0) continue;
+    for(let i=0;i<l;i++) total+=Math.ceil(d.base*Math.pow(1.20,i));
+    n+=l; }
+  if(!n){ showToast('No RP levels to refund.'); return; }
+  if(!confirm('Refund '+n+' permanent RP level'+(n>1?'s':'')+' for '+total.toFixed(0)+' RP?')) return;
+  for(const d of UPS) save.rpups[d.id]=0;
+  save.rp=Number((save.rp+total).toFixed(2));
+  if(selId&&!byId[selId]) selId='ion';
+  storeSave(save); refreshBank(); renderForge();
+  showToast('Refunded '+n+' levels → +'+total.toFixed(0)+' RP');
+};
 // bulk pricing: buy k=min(bulk,remaining); a full 5 costs 10% less than five singles
 function bulkK(mx,lvl){ const rem=mx-lvl; return rem<=0?0:Math.min(bulk,rem); }
 function bulkCost(def,lvl,k){ let s=0; for(let i=0;i<k;i++) s+=costOf(def,lvl+i); return k===5?s*0.9:s; }
