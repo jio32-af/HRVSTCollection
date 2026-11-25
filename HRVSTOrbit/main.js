@@ -1,7 +1,7 @@
-import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=29';
-import {drawWorld, makeStars, tierTheme} from './renderer.js?v=29';
-import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=29';
-import * as AU from './audio.js?v=29';
+import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=30';
+import {drawWorld, makeStars, tierTheme} from './renderer.js?v=30';
+import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=30';
+import * as AU from './audio.js?v=30';
 
 const cv=document.getElementById('game'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -120,7 +120,7 @@ function renderForge(){
     const pre=PREREQ[d.id]||null, open=isOpen(d.id);
     const mx=maxFor(d,save.tier), lvl=effLvl(d.id), bl=save.ups[d.id]||0, rl=save.rpups[d.id]||0;
     const k=bulkK(mx,lvl);
-    import('./upgrades.js?v=29').then(m=>{
+    import('./upgrades.js?v=30').then(m=>{
       box.innerHTML='<h4>'+d.name+' <span class="lv">'+lvl+'/'+mx+'</span></h4>'+
         '<p>'+d.desc+'</p><div class="tip">'+m.nextTip(d,lvl,mx,save.tier)+'</div>'+
         '<div class="lvrow">BP lv '+bl+' (resets) · RP lv '+rl+' (permanent)</div>';
@@ -440,9 +440,8 @@ function frame(now){
   R.nearEdge=(R.BR-rr)<350;
   R.p.M=R.M; R.p.r=5+Math.cbrt(R.M)*1.6;
   R.p.angle=Math.atan2(R.p.vy,R.p.vx);
-  // magnet: forgiving on mobile, classic tight reach on desktop (caps lowered vs snowball)
-  const magR=IS_TOUCH?Math.min(300,(18+R.p.r*1.6)*st.magnet*Math.pow(Math.max(1,R.M/10),0.14))
-    :Math.min(260,(14+R.p.r*1.4)*st.magnet*Math.pow(Math.max(1,R.M/10),0.14));
+  // magnet: identical reach on every device
+  const magR=Math.min(260,(14+R.p.r*1.4)*st.magnet*Math.pow(Math.max(1,R.M/10),0.14));
   for(let i=R.bodies.length-1;i>=0;i--){
     const b=R.bodies[i];
     // drift bodies on rails
