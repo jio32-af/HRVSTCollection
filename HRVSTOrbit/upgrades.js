@@ -15,7 +15,7 @@ export const UPS = [
  {id:'hawk',  br:'Relativistic & Time', name:'Hawking Radiation Tap', max:8, base:3, desc:'Slows hole growth; siphon 0.05% B/s in danger zone.'},
  {id:'res',   br:'Relativistic & Time', name:'Singularity Resonance', max:10, base:2, desc:'+12% final BP per level.'},
 ];
-export function costOf(def, lvl){ return Math.ceil(def.base * Math.pow(1.50, lvl)); }
+export function costOf(def, lvl){ return Math.ceil(def.base * Math.pow(1.20, lvl)); }
 // Sublinear Rebirth curve, trimmed slightly: low ratios pay fairly, parity pays 10.
 export function baseBP(M, B){
   if(!(M>0&&B>0)) return 0;

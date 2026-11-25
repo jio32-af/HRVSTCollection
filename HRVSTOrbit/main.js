@@ -1,7 +1,7 @@
-import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=22';
-import {drawWorld, makeStars, tierTheme} from './renderer.js?v=22';
-import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=22';
-import * as AU from './audio.js?v=22';
+import {G, schwarzschild, bhRadius, boundaryR, holeMass, circularOrbitVel, stepBody, stabilize, predictPath} from './physics.js?v=23';
+import {drawWorld, makeStars, tierTheme} from './renderer.js?v=23';
+import {UPS, PERM, ADV, permMass, costOf, baseBP, tierInfo, maxFor, loadSave, defaultSave, storeSave, exportStr, importStr, stats} from './upgrades.js?v=23';
+import * as AU from './audio.js?v=23';
 
 const cv=document.getElementById('game'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -101,14 +101,16 @@ function renderForge(){
   const effLvl=id=>(save.ups[id]||0)+(save.rpups[id]||0); // BP + RP levels combined
   const isOpen=id=>{ const pre=PREREQ[id]||null; return !pre||effLvl(pre)>0; };
   const mkNode=d=>{
-    const seen=isOpen(d.id); // fog of war: invisible until parent bought
+    const open=isOpen(d.id);
     const mx=maxFor(d,save.tier), lvl=effLvl(d.id), rpl=save.rpups[d.id]||0;
+    const k=bulkK(mx,lvl);
+    const afford=open&&k>0&&(save.bp>=bulkCost(d,lvl,k)||save.rp>=rpCost(d,lvl,k));
     const div=document.createElement('div');
-    div.className='tnode'+(seen?'':' fog')+(lvl>0?' owned':'')+(lvl>=mx&&seen?' maxed':'')+(rpl>0?' rp':'')+(selId===d.id?' sel':'');
+    div.className='tnode'+(open?'':' locked')+(lvl>0?' owned':'')+(lvl>=mx?' maxed':'')+(rpl>0?' rp':'')+(afford?' afford':'')+(selId===d.id?' sel':'');
     div.dataset.id=d.id;
     div.innerHTML='<span class="dot">'+(ABBR[d.id]||'??')+'</span><span class="nlv">'+lvl+'/'+mx+'</span>'+(rpl>0?'<span class="rlv">+'+rpl+'</span>':'');
-    div.title=d.name+' '+lvl+'/'+mx+(rpl>0?' ('+rpl+' RP, permanent)':'');
-    if(seen) div.onclick=()=>{ selId=d.id; renderForge(); };
+    div.title=d.name+' '+lvl+'/'+mx+(rpl>0?' ('+rpl+' RP, permanent)':'')+(afford?' — AFFORDABLE':'');
+    div.onclick=()=>{ selId=d.id; renderForge(); };
     return div;
   };
   const renderDetail=()=>{
@@ -117,7 +119,7 @@ function renderForge(){
     const pre=PREREQ[d.id]||null, open=isOpen(d.id);
     const mx=maxFor(d,save.tier), lvl=effLvl(d.id), bl=save.ups[d.id]||0, rl=save.rpups[d.id]||0;
     const k=bulkK(mx,lvl);
-    import('./upgrades.js?v=22').then(m=>{
+    import('./upgrades.js?v=23').then(m=>{
       box.innerHTML='<h4>'+d.name+' <span class="lv">'+lvl+'/'+mx+'</span></h4>'+
         '<p>'+d.desc+'</p><div class="tip">'+m.nextTip(d,lvl,mx,save.tier)+'</div>'+
         '<div class="lvrow">BP lv '+bl+' (resets) · RP lv '+rl+' (permanent)</div>';
@@ -191,7 +193,6 @@ function drawLinks(){
   const tr=t.getBoundingClientRect(); svg.setAttribute('width',t.offsetWidth); svg.setAttribute('height',t.offsetHeight);
   let html='';
   for(const [child,parent] of Object.entries(PREREQ)){
-    if(((save.ups[parent]||0)+(save.rpups[parent]||0))<=0) continue; // fogged: child still invisible
     const pe=t.querySelector('[data-id="'+parent+'"]'), ce=t.querySelector('[data-id="'+child+'"]');
     if(!pe||!ce) continue;
     const pr=pe.getBoundingClientRect(), cr=ce.getBoundingClientRect();
@@ -222,7 +223,7 @@ $('btnBulk').onclick=()=>{ bulk=bulk===1?5:1; renderForge(); };
 function bulkK(mx,lvl){ const rem=mx-lvl; return rem<=0?0:Math.min(bulk,rem); }
 function bulkCost(def,lvl,k){ let s=0; for(let i=0;i<k;i++) s+=costOf(def,lvl+i); return k===5?s*0.9:s; }
 // RP purchases share the unified 1.50 curve with BP
-function rpCost(def,lvl,k){ let s=0; for(let i=0;i<k;i++) s+=Math.ceil(def.base*Math.pow(1.50,lvl+i)); return k===5?s*0.9:s; }
+function rpCost(def,lvl,k){ let s=0; for(let i=0;i<k;i++) s+=Math.ceil(def.base*Math.pow(1.20,lvl+i)); return k===5?s*0.9:s; }
 $('btnAdv').onclick=()=>{ renderAdvs(); show(advEl); };
 $('btnAdvBack').onclick=()=>{ show(startEl); refreshBank(); };
 $('btnAdvGo').onclick=()=>{ AU.initAudio(); AU.resume(); startRun(); };
